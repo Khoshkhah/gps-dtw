@@ -30,3 +30,13 @@ match_trace(network, x, y, ts, *, speed=12.0, tau=3.0, corridor_min=30.0, corrid
 
 Returns the route as edge indexes, in driving order. The keyword arguments are in [Parameters](parameters.md).
 `match_trace` releases the Python GIL, so you can match traces in parallel threads with one network.
+
+## `gps_dtw.interpolate`
+
+```python
+interpolate(x, y, ts, *, tau=3.0) -> (x, y, ts, origin, weight)
+```
+
+The input that the DTW uses for one trace: the cleaned GPS points, interpolated at 1 s with the Bezier curve, without
+the stopped repeats. `origin` is `True` for a real GPS point. `weight` is the [confidence weight](../concepts/confidence.md)
+of each point. Use it to show or check the interpolation.

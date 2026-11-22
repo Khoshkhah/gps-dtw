@@ -490,8 +490,7 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
     if n == 0 {
         return Vec::new();
     }
-    let dt = seconds_to_gps(ts, origin);
-    let w: Vec<f64> = dt.iter().map(|&t| 1.0 / (1.0 + (t / p.tau).powi(2))).collect();
+    let w = weights(ts, origin, p.tau);
     // the road corridor
     let gps: Vec<usize> = (0..n).filter(|&i| origin[i]).collect();
     let mut gaps: Vec<f64> = gps.windows(2).map(|q| dist([x[q[0]], y[q[0]]], [x[q[1]], y[q[1]]])).collect();
@@ -786,11 +785,13 @@ fn segment_dtw(
     route
 }
 
-/// GPS-DTW on one trace: `richdata`, Bezier interpolation at 1 s (stopped repeats removed), then [`gps_dtw`].
-pub fn match_gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], p: &GpsDtwParams) -> Result<Vec<usize>, String> {
+/// The input of the DTW: `richdata`, then the Bezier interpolation at 1 s with the stopped repeats removed.
+/// Returns (x, y, ts, origin); origin = a real GPS point.
+pub fn prepare(x: &[f64], y: &[f64], ts: &[i64]) -> Result<(Vec<f64>, Vec<f64>, Vec<i64>, Vec<bool>), String> {
     let c = enrich(x, y, ts, 0.7, 1.0, 50.0, 2.0, Some(2.0))?;
     if c.x.len() < 2 {
-        return Ok(gps_dtw(net, &c.x, &c.y, &c.ts, &vec![true; c.x.len()], p));
+        let n = c.x.len();
+        return Ok((c.x, c.y, c.ts, vec![true; n]));
     }
     let cts: Vec<f64> = c.ts.iter().map(|&t| t as f64).collect();
     let tr = interpolate(&c.x, &c.y, &cts, &c.speed, &c.bearing, &c.stop, 1.0);
@@ -808,5 +809,16 @@ pub fn match_gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], p: &GpsDtw
         pt.push(tr.ts[k]);
         po.push(tr.origin[k]);
     }
+    Ok((px, py, pt, po))
+}
+
+/// The confidence weight of each point: 1 / (1 + (dt / tau)^2), dt = seconds to the nearest GPS point.
+pub fn weights(ts: &[i64], origin: &[bool], tau: f64) -> Vec<f64> {
+    seconds_to_gps(ts, origin).iter().map(|&t| 1.0 / (1.0 + (t / tau).powi(2))).collect()
+}
+
+/// GPS-DTW on one trace: [`prepare`], then [`gps_dtw`].
+pub fn match_gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], p: &GpsDtwParams) -> Result<Vec<usize>, String> {
+    let (px, py, pt, po) = prepare(x, y, ts)?;
     Ok(gps_dtw(net, &px, &py, &pt, &po, p))
 }

@@ -73,9 +73,24 @@ fn match_trace(
     py.detach(|| c::match_gps_dtw(&net, &x, &y, &ts, &p)).map_err(PyValueError::new_err)
 }
 
+/// The input of the DTW for one trace: the cleaned GPS points, interpolated at 1 s (Bezier), with the
+/// confidence weight of each point. Returns (x, y, ts, origin, weight); origin = a real GPS point.
+#[pyfunction]
+#[pyo3(signature = (x, y, ts, *, tau=3.0))]
+#[allow(clippy::type_complexity)]
+fn interpolate(x: Vec<f64>, y: Vec<f64>, ts: Vec<i64>, tau: f64) -> PyResult<(Vec<f64>, Vec<f64>, Vec<i64>, Vec<bool>, Vec<f64>)> {
+    if y.len() != x.len() || ts.len() != x.len() {
+        return Err(PyValueError::new_err("x, y and ts must have the same length"));
+    }
+    let (px, py, pt, po) = c::prepare(&x, &y, &ts).map_err(PyValueError::new_err)?;
+    let w = c::weights(&pt, &po, tau);
+    Ok((px, py, pt, po, w))
+}
+
 #[pymodule]
 fn gps_dtw(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(match_trace, m)?)?;
+    m.add_function(wrap_pyfunction!(interpolate, m)?)?;
     m.add_class::<Network>()?;
     Ok(())
 }
