@@ -4,11 +4,12 @@
 
 GPS-DTW finds the road edges that a vehicle drove, from its GPS points. It interpolates the trace to one point each second,
 divides the roads near the trace into points one second apart, and aligns the two sequences with dynamic time warping
-(DTW). Each input point has a confidence weight: a real GPS point counts fully, an interpolated point counts less.
+([What DTW is](concepts/dtw.md)). Each input point has a confidence weight: a real GPS point counts fully, an interpolated point counts less.
 
 <div class="hero-actions" markdown>
 
 [Get started](start/index.md){ .md-button .md-button--primary }
+[What DTW is](concepts/dtw.md){ .md-button }
 [How it works](concepts/index.md){ .md-button }
 [Results](results/index.md){ .md-button }
 

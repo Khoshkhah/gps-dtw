@@ -15,6 +15,7 @@ flowchart LR
 
 | Page | Contents |
 |---|---|
+| [What DTW is](dtw.md) | classic DTW, and how GPS-DTW changes it for a road graph |
 | [The steps](steps.md) | each step from the GPS points to the route |
 | [One second on both sides](time-division.md) | why the roads are divided by time, and what goes wrong without it |
 | [The cost](cost.md) | segment mode and node mode, the moves, the bearing term |

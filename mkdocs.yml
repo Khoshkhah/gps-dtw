@@ -63,6 +63,7 @@ nav:
       - Your first match: start/first_match.md
   - How it works:
       - Overview: concepts/index.md
+      - What DTW is: concepts/dtw.md
       - The steps: concepts/steps.md
       - One second on both sides: concepts/time-division.md
       - The cost: concepts/cost.md

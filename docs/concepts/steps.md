@@ -31,5 +31,5 @@ See [One second on both sides](time-division.md).
 
 ## 5. DTW and the route
 
-DTW aligns the input with the road graph and finds the alignment with the lowest total cost (see [The cost](cost.md)).
+DTW ([What DTW is](dtw.md)) aligns the input with the road graph and finds the alignment with the lowest total cost (see [The cost](cost.md)).
 The backtrack gives the aligned road segments. The route is the sequence of their edges, each edge once for each pass.
