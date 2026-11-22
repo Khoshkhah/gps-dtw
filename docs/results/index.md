@@ -5,22 +5,22 @@ See [Test data](data.md).
 
 The scores of one trace:
 
-- **recall** = the share of the true route's edges that the route has;
-- **precision** = the share of the route's edges that are on the true route.
+- **recall** = the share of the true route's edges that the found route has;
+- **precision** = the share of the found route's edges that are on the true route.
 
-## GPS-DTW (segment mode, defaults)
+## GPS-DTW with the defaults
 
-A sample of every third route (51 traces for each GPS interval), with the turn restrictions and the defaults:
+All 600 traces. Recall / precision, and the median time for each trace on one CPU core.
 
-| GPS interval | Recall | Precision | Time for each trace |
+| GPS interval | Recall | Precision | Time |
 |---|---|---|---|
-| 1 s | 0.963 | 0.982 | 5 ms |
-| 5 s | 0.961 | 0.959 | 6 ms |
-| 15 s | 0.944 | 0.951 | 13 ms |
-| 30 s | 0.918 | 0.921 | 23 ms |
+| 1 s | 0.945 | 0.974 | 4 ms |
+| 5 s | 0.955 | 0.956 | 6 ms |
+| 15 s | 0.922 | 0.939 | 15 ms |
+| 30 s | 0.898 | 0.912 | 31 ms |
 
 | Page | Contents |
 |---|---|
-| [Comparison with other methods](compare.md) | GPS-DTW against the duckOSM HMM, NRT + DTW and graph-DTW |
-| [Effect of the parameters](parameters.md) | the mode, the bearing weight, τ, the speed |
+| [Comparison with the HMM](compare.md) | GPS-DTW against the duckOSM HMM: accuracy and time |
+| [Effect of the parameters](parameters.md) | each parameter changed from the defaults |
 | [Test data](data.md) | how the traces were made, and the limits of the test |

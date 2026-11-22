@@ -2,7 +2,7 @@
 
 ## 1. Clean the GPS points
 
-The cleaning (a copy of the function `richdata` of NRTMapMatching):
+The cleaning:
 
 - removes outliers (a speed of more than 50 m/s between two points);
 - smooths the velocity, but only for steps of 2 s or less. After a longer gap, a point keeps its GPS position;

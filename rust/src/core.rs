@@ -478,8 +478,10 @@ pub struct GpsDtwParams {
     pub bearing_weight: f64,
     /// The confidence weight of a real GPS point (an interpolated point has at most 1).
     pub gps_weight: f64,
-    /// The rows (seconds) in one window; 0 = one window for the whole track.
+    /// The seconds in one window; 0 = one window for the whole track.
     pub window: usize,
+    /// The interpolation interval (s). The road points are `speed x step` apart.
+    pub step: f64,
     /// The ends that a window keeps for the next window.
     pub top_k: usize,
 }
@@ -743,7 +745,7 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
     let seg_w: Vec<f64> = if segment { (0..n - 1).map(|i| 0.5 * (w[i] + w[i + 1])).collect() } else { vec![] };
     let seg_b: Vec<f64> = if segment { (0..n - 1).map(|i| bearing([x[i], y[i]], [x[i + 1], y[i + 1]])).collect() } else { vec![] };
     let bw = p.bearing_weight;
-    let win = if p.window == 0 { nrows } else { p.window };
+    let win = if p.window == 0 { nrows } else { ((p.window as f64 / p.step).round() as usize).max(1) };
     let mut kept: Option<Vec<Kept>> = None;
     let mut r0 = 0;
     loop {
@@ -756,7 +758,7 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
         }
         edges.sort_unstable();
         edges.dedup();
-        let st = build_states(net, &edges, p.speed.max(0.1), segment);
+        let st = build_states(net, &edges, (p.speed * p.step).max(0.1), segment);
         let cost = |row: usize, v: usize| -> f64 {
             if segment {
                 let mut c = dist(seg_mid[row], st.pos[v]);
@@ -783,16 +785,16 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
     }
 }
 
-/// The input of the DTW: `richdata`, then the Bezier interpolation at 1 s with the stopped repeats removed.
+/// The input of the DTW: `richdata`, then the Bezier interpolation each `step` seconds with the stopped repeats removed.
 /// Returns (x, y, ts, origin); origin = a real GPS point.
-pub fn prepare(x: &[f64], y: &[f64], ts: &[i64]) -> Result<(Vec<f64>, Vec<f64>, Vec<i64>, Vec<bool>), String> {
+pub fn prepare(x: &[f64], y: &[f64], ts: &[i64], step: f64) -> Result<(Vec<f64>, Vec<f64>, Vec<i64>, Vec<bool>), String> {
     let c = enrich(x, y, ts, 0.7, 1.0, 50.0, 2.0, Some(2.0))?;
     if c.x.len() < 2 {
         let n = c.x.len();
         return Ok((c.x, c.y, c.ts, vec![true; n]));
     }
     let cts: Vec<f64> = c.ts.iter().map(|&t| t as f64).collect();
-    let tr = interpolate(&c.x, &c.y, &cts, &c.speed, &c.bearing, &c.stop, 1.0);
+    let tr = interpolate(&c.x, &c.y, &cts, &c.speed, &c.bearing, &c.stop, step);
     let (mut px, mut py, mut pt, mut po) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     for k in 0..tr.x.len() {
         let same = !px.is_empty() && px[px.len() - 1] == tr.x[k] && py[py.len() - 1] == tr.y[k];
@@ -817,6 +819,6 @@ pub fn weights(ts: &[i64], origin: &[bool], tau: f64) -> Vec<f64> {
 
 /// GPS-DTW on one trace: [`prepare`], then [`gps_dtw`].
 pub fn match_gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], p: &GpsDtwParams) -> Result<Vec<usize>, String> {
-    let (px, py, pt, po) = prepare(x, y, ts)?;
+    let (px, py, pt, po) = prepare(x, y, ts, p.step)?;
     Ok(gps_dtw(net, &px, &py, &pt, &po, p))
 }

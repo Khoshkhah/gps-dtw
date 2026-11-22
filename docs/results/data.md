@@ -21,7 +21,7 @@ The files are in `data/` of this repository.
 
 !!! warning "The true routes are shortest paths"
     `route()` gives the shortest path. Any part of a shortest path is also the shortest path between its own points.
-    So methods that fill gaps with shortest paths (the HMM, NRT's road interpolation) are right almost by construction.
+    So methods that fill gaps with shortest paths (for example the HMM) are right almost by construction.
     Real drivers do not always take the shortest path. A test on real trips is necessary.
 
 - Only one city (Monaco), with many short edges and tunnels.

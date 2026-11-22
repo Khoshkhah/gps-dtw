@@ -113,10 +113,10 @@ The route is the sequence of these edges, with each edge one time for each pass.
 
 ## Which mode to use
 
-| Mode | 15 s | 30 s |
-|---|---|---|
-| Segment | 0.944 / 0.951 | 0.918 / 0.921 |
-| Node | 0.949 / 0.963 | 0.922 / 0.929 |
+| Mode | 1 s | 5 s | 15 s | 30 s |
+|---|---|---|---|---|
+| Segment | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 |
+| Node | 0.960 / 0.987 | 0.959 / 0.969 | 0.949 / 0.963 | 0.922 / 0.929 |
 
-Recall / precision on the Monaco sample (every third route). Segment mode has slightly more recall, and node mode has
-slightly more precision. Segment mode is the default because it is the only mode that can use the direction.
+Recall / precision on the Monaco sample (every third route). The two modes are close. Segment mode is the default
+because it is the only mode that can use the direction (`bearing_weight`), which helps at 5 s and 15 s.

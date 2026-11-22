@@ -20,7 +20,7 @@ direction. `len(net)` gives the number of edges.
 
 ```python
 match_trace(network, x, y, ts, *, speed=12.0, tau=3.0, corridor_min=30.0, corridor_gap=1.0,
-            segment=True, bearing_weight=0.0, gps_weight=5.0, window=60, top_k=20) -> list[int]
+            segment=True, bearing_weight=0.0, gps_weight=5.0, window=60, top_k=20, step=1.0) -> list[int]
 ```
 
 | Argument | Type | Description |
@@ -35,9 +35,9 @@ Returns the route as edge indexes, in driving order. The keyword arguments are i
 ## `gps_dtw.interpolate`
 
 ```python
-interpolate(x, y, ts, *, tau=3.0) -> (x, y, ts, origin, weight)
+interpolate(x, y, ts, *, tau=3.0, step=1.0) -> (x, y, ts, origin, weight)
 ```
 
-The input that the DTW uses for one trace: the cleaned GPS points, interpolated at 1 s with the Bezier curve, without
+The input that the DTW uses for one trace: the cleaned GPS points, interpolated each `step` seconds with the Bezier curve, without
 the stopped repeats. `origin` is `True` for a real GPS point. `weight` is the [confidence weight](../concepts/confidence.md)
 of each point. Use it to show or check the interpolation.

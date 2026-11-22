@@ -1,129 +1,98 @@
 # Effect of the parameters
 
-The sample of every third route. Segment mode unless stated.
+Each table changes one parameter from the defaults. The values are recall / precision on a sample: every third route
+(51 traces for each GPS interval). The defaults give these values on the sample:
 
-## Search radius
-
-The radius = `max(corridor_min, corridor_gap × median distance between two GPS points)`.
-
-| `corridor_gap` | Radius at 30 s | 15 s | 30 s | Time for each trace |
+| GPS interval | 1 s | 5 s | 15 s | 30 s |
 |---|---|---|---|---|
-| 0.5 | about 134 m | 0.928 / 0.949 | 0.832 / 0.870 | 0.04 s |
-| **1.0 (default)** | about 270 m | 0.939 / 0.954 | 0.908 / 0.919 | 0.07 s |
-| 1.5 | about 400 m | 0.939 / 0.954 | 0.908 / 0.919 | 0.09 s |
-| 2.0 | about 540 m | 0.939 / 0.954 | 0.908 / 0.919 | 0.11 s |
-
-With 0.5, the true road of some 30 s traces goes out of the radius on a winding road, and the match fails almost
-completely (15 traces cause half of the recall loss). A radius larger than the GPS spacing gives no more gain.
-
-## Windows and top k
-
-| Setting | 1 s | 5 s | 15 s | 30 s | Time (median) |
-|---|---|---|---|---|---|
-| full DTW (`window` 0) | 0.962 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 40 ms |
-| window 30, k 5 | 0.930 / 0.966 | 0.959 / 0.957 | 0.935 / 0.936 | 0.908 / 0.908 | 9 ms |
-| window 30, k 20 | 0.946 / 0.973 | 0.960 / 0.958 | 0.944 / 0.951 | 0.918 / 0.916 | 11 ms |
-| window 60, k 10 | 0.954 / 0.978 | 0.960 / 0.959 | 0.941 / 0.946 | 0.918 / 0.921 | 16 ms |
-| **window 60, k 20 (default)** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 19 ms |
-| window 120, k 10 | 0.963 / 0.982 | 0.960 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 28 ms |
-
-Time for each trace (median, ms, one thread) at each GPS interval:
-
-| GPS interval | Full DTW | Window 60, k 20 | duckOSM HMM (an earlier run) |
-|---|---|---|---|
-| 1 s | 11.6 | 4.6 | 66.5 |
-| 5 s | 16.2 | 6.0 | 57.9 |
-| 15 s | 34.7 | 13.0 | 57.8 |
-| 30 s | 59.7 | 22.8 | 59.3 |
-
-A short window or a small `k` loses the true road at a window border, mostly at 1 s.
-
-## Bearing weight at each GPS interval
-
-With the defaults (`gps_weight` 5, the turn restrictions).
-
-| Setting | 1 s | 5 s | 15 s | 30 s |
-|---|---|---|---|---|
-| node mode | 0.959 / 0.987 | 0.959 / 0.969 | 0.949 / 0.963 | 0.922 / 0.929 |
-| segment, bearing 0 | 0.962 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 |
-| segment, bearing 0.05 | 0.958 / 0.978 | 0.962 / 0.966 | 0.944 / 0.954 | 0.916 / 0.925 |
-| segment, bearing 0.1 | 0.958 / 0.978 | 0.963 / 0.967 | 0.946 / 0.958 | 0.913 / 0.925 |
-| segment, bearing 0.2 | 0.957 / 0.976 | 0.964 / 0.968 | 0.946 / 0.957 | 0.901 / 0.921 |
-| segment, bearing 0.5 | 0.950 / 0.952 | 0.966 / 0.970 | 0.937 / 0.954 | 0.879 / 0.913 |
-
-The bearing helps a little at 5 s and 15 s. At 1 s, the bearing of a one-second step is noisy. At 30 s, the bearing of
-the interpolated curve is often wrong.
-
-## Weight of the real GPS points
-
-With the turn restrictions (duckOSM `edge_graph`).
-
-| `gps_weight` | Segment 15 s | Segment 30 s | Node 15 s | Node 30 s |
-|---|---|---|---|---|
-| 1 | 0.940 / 0.956 | 0.906 / 0.924 | 0.930 / 0.963 | 0.903 / 0.931 |
-| 2 | 0.940 / 0.956 | 0.910 / 0.923 | 0.936 / 0.964 | 0.908 / 0.928 |
-| **5 (default)** | 0.944 / 0.951 | 0.918 / 0.921 | **0.949 / 0.963** | **0.922 / 0.929** |
-| 10 | 0.947 / 0.933 | 0.920 / 0.911 | 0.950 / 0.945 | 0.926 / 0.921 |
-| 20 | 0.955 / 0.930 | 0.924 / 0.905 | 0.947 / 0.927 | 0.928 / 0.913 |
-| 50 | 0.948 / 0.892 | 0.907 / 0.833 | 0.946 / 0.899 | 0.914 / 0.848 |
-
-A higher weight pulls the route through the real GPS points: the recall goes up. Above 5, the precision goes down,
-because a noisy GPS point then pulls the route onto a wrong road near it. Node mode with `gps_weight = 5` is the best
-setting.
-
-## Turn restrictions
-
-| Connections | Mode | 15 s | 30 s |
-|---|---|---|---|
-| all turns at a node | segment | 0.939 / 0.954 | 0.908 / 0.919 |
-| duckOSM `edge_graph` | segment | 0.940 / 0.956 | 0.906 / 0.924 |
-| all turns at a node | node | 0.929 / 0.962 | 0.899 / 0.929 |
-| duckOSM `edge_graph` | node | 0.930 / 0.963 | 0.903 / 0.931 |
-
-Without the turns, 12 of the 150 routes at 30 s used a forbidden turn.
-
-## Bearing weight with the default radius
-
-| Weight | 15 s | 30 s |
-|---|---|---|
-| 0 | 0.939 / 0.954 | 0.908 / 0.919 |
-| 0.05 | 0.940 / 0.954 | 0.895 / 0.922 |
-| 0.1 | 0.938 / 0.955 | 0.892 / 0.923 |
-| 0.3 | 0.936 / 0.962 | 0.848 / 0.910 |
-
-The tables below were measured with the old radius (`corridor_gap` 0.5).
+| defaults | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 |
 
 ## Mode
 
-| Mode | 15 s | 30 s |
-|---|---|---|
-| Segment | 0.928 / 0.949 | 0.832 / 0.870 |
-| Node | 0.917 / 0.957 | 0.823 / 0.885 |
+| Mode | 1 s | 5 s | 15 s | 30 s |
+|---|---|---|---|---|
+| **segment (default)** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 |
+| node | 0.960 / 0.987 | 0.959 / 0.969 | 0.949 / 0.963 | 0.922 / 0.929 |
 
-## Bearing weight
+## Weight of the real GPS points (`gps_weight`)
 
-| Weight | 180° counts as | 15 s | 30 s |
-|---|---|---|---|
-| 0 | | 0.928 / 0.949 | 0.832 / 0.870 |
-| 0.1 | 18 m | 0.926 / 0.949 | 0.824 / 0.875 |
-| 0.2 | 36 m | 0.926 / 0.951 | 0.815 / 0.875 |
-| 0.5 | 90 m | 0.919 / 0.960 | 0.764 / 0.857 |
-| 1.0 | 180 m | 0.919 / 0.970 | 0.762 / 0.862 |
-| 2.0 | 360 m | 0.901 / 0.960 | 0.743 / 0.852 |
+| `gps_weight` | 1 s | 5 s | 15 s | 30 s |
+|---|---|---|---|---|
+| 1 | 0.959 / 0.980 | 0.955 / 0.968 | 0.940 / 0.956 | 0.906 / 0.924 |
+| 2 | 0.958 / 0.979 | 0.956 / 0.968 | 0.939 / 0.956 | 0.910 / 0.923 |
+| **5 (default)** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 |
+| 10 | 0.964 / 0.983 | 0.965 / 0.949 | 0.947 / 0.933 | 0.920 / 0.911 |
 
-A high weight helps precision at 15 s and decreases recall at 30 s. In the middle of a 30 s gap, the direction of the
+A higher weight pulls the route through the real GPS points. Above 5, a noisy GPS point pulls the route onto a wrong
+road near it.
+
+## Time scale of the confidence weight (`tau`)
+
+| `tau` | 1 s | 5 s | 15 s | 30 s |
+|---|---|---|---|---|
+| 1 s | 0.964 / 0.983 | 0.965 / 0.937 | 0.948 / 0.899 | 0.906 / 0.840 |
+| **3 s (default)** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 |
+| 6 s | 0.963 / 0.982 | 0.960 / 0.961 | 0.939 / 0.954 | 0.875 / 0.909 |
+| 10 s | 0.963 / 0.982 | 0.959 / 0.963 | 0.935 / 0.950 | 0.833 / 0.884 |
+
+## Bearing weight (`bearing_weight`, segment mode)
+
+| `bearing_weight` | 1 s | 5 s | 15 s | 30 s |
+|---|---|---|---|---|
+| **0 (default)** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 |
+| 0.05 | 0.959 / 0.979 | 0.962 / 0.966 | 0.944 / 0.954 | 0.916 / 0.925 |
+| 0.1 | 0.959 / 0.980 | 0.963 / 0.967 | 0.946 / 0.958 | 0.913 / 0.925 |
+| 0.2 | 0.958 / 0.976 | 0.964 / 0.968 | 0.946 / 0.957 | 0.901 / 0.921 |
+| 0.5 | 0.951 / 0.953 | 0.966 / 0.970 | 0.937 / 0.954 | 0.879 / 0.913 |
+
+The bearing helps at 5 s and 15 s. At 1 s, the bearing of a one-second step is noisy. At 30 s, the bearing of the
 interpolated curve is often wrong.
 
-## Time scale τ (node mode)
+## Search radius (`corridor_gap`)
 
-| τ | 15 s | 30 s |
-|---|---|---|
-| 3 s | 0.917 / 0.957 | 0.823 / 0.885 |
-| 10 s | 0.887 / 0.948 | 0.719 / 0.849 |
+| `corridor_gap` | 1 s | 5 s | 15 s | 30 s | Time |
+|---|---|---|---|---|---|
+| 0.5 | 0.963 / 0.982 | 0.913 / 0.963 | 0.932 / 0.946 | 0.840 / 0.881 | 8 ms |
+| **1.0 (default)** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 16 ms |
+| 1.5 | 0.974 / 0.981 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 25 ms |
 
-## Speed (node mode)
+With a smaller radius, the true road of a winding street can go out of the radius between two GPS points.
 
-| Speed | 15 s | 30 s |
-|---|---|---|
-| 8 m/s | 0.909 / 0.957 | 0.803 / 0.884 |
-| 12 m/s | 0.917 / 0.957 | 0.823 / 0.885 |
+## Road point spacing (`speed`)
+
+| `speed` | 1 s | 5 s | 15 s | 30 s |
+|---|---|---|---|---|
+| 8 m/s | 0.960 / 0.987 | 0.957 / 0.969 | 0.939 / 0.959 | 0.919 / 0.930 |
+| **12 m/s (default)** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 |
+| 16 m/s | 0.967 / 0.971 | 0.968 / 0.951 | 0.946 / 0.938 | 0.921 / 0.906 |
+
+## Interpolation interval (`step`)
+
+| `step` | 1 s | 5 s | 15 s | 30 s | Time |
+|---|---|---|---|---|---|
+| **1 s (default)** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 15 ms |
+| 2 s | 0.939 / 0.937 | 0.956 / 0.964 | 0.937 / 0.949 | 0.922 / 0.925 | 5 ms |
+| 3 s | 0.938 / 0.925 | 0.934 / 0.965 | 0.930 / 0.954 | 0.906 / 0.915 | 3 ms |
+| 5 s | 0.941 / 0.892 | 0.851 / 0.954 | 0.905 / 0.952 | 0.897 / 0.921 | 2 ms |
+| 5 s, node mode | 0.927 / 0.953 | 0.746 / 0.931 | 0.919 / 0.949 | 0.919 / 0.941 | 3 ms |
+
+A larger step is faster, but the road points are further apart and the result is worse at 1 s to 15 s.
+
+## Windows (`window`, `top_k`)
+
+| Setting | 1 s | 5 s | 15 s | 30 s | Time |
+|---|---|---|---|---|---|
+| full DTW (`window` 0) | 0.962 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 42 ms |
+| window 30, k 10 | 0.937 / 0.969 | 0.959 / 0.957 | 0.937 / 0.942 | 0.918 / 0.916 | 10 ms |
+| window 60, k 10 | 0.954 / 0.978 | 0.960 / 0.959 | 0.941 / 0.946 | 0.918 / 0.921 | 15 ms |
+| **window 60, k 20 (default)** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 16 ms |
+
+The defaults give the same result as the full DTW in less than half the time. A short window or a small `k` can lose
+the true road at a window border.
+
+## Turn restrictions (`turns`)
+
+| Connections | 1 s | 5 s | 15 s | 30 s |
+|---|---|---|---|---|
+| all turns at a node | 0.963 / 0.982 | 0.961 / 0.958 | 0.943 / 0.949 | 0.914 / 0.914 |
+| **duckOSM `edge_graph`** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 |

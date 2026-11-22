@@ -31,7 +31,9 @@ gap does not show this difference.
 
 | τ | 15 s | 30 s |
 |---|---|---|
-| 3 s | 0.917 / 0.957 | 0.823 / 0.885 |
-| 10 s | 0.887 / 0.948 | 0.719 / 0.849 |
+| 1 s | 0.948 / 0.899 | 0.906 / 0.840 |
+| **3 s (default)** | 0.944 / 0.951 | 0.918 / 0.921 |
+| 10 s | 0.935 / 0.950 | 0.833 / 0.884 |
 
-(node mode, sample). A short time scale is better: the points far from a GPS point must count little.
+Recall / precision on the sample (every third route). With a long time scale, the points in the middle of a gap count
+too much. With a very short one, only the GPS points count, and the precision falls.

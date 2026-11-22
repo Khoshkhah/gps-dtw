@@ -52,7 +52,7 @@ impl Network {
 /// whole seconds, increasing. Returns the route as edge indexes, in driving order.
 #[pyfunction]
 #[pyo3(signature = (network, x, y, ts, *, speed=12.0, tau=3.0, corridor_min=30.0, corridor_gap=1.0, segment=true,
-                    bearing_weight=0.0, gps_weight=5.0, window=60, top_k=20))]
+                    bearing_weight=0.0, gps_weight=5.0, window=60, top_k=20, step=1.0))]
 #[allow(clippy::too_many_arguments)]
 fn match_trace(
     py: Python<'_>,
@@ -69,6 +69,7 @@ fn match_trace(
     gps_weight: f64,
     window: usize,
     top_k: usize,
+    step: f64,
 ) -> PyResult<Vec<usize>> {
     if y.len() != x.len() || ts.len() != x.len() {
         return Err(PyValueError::new_err("x, y and ts must have the same length"));
@@ -76,10 +77,10 @@ fn match_trace(
     if x.is_empty() {
         return Ok(Vec::new());
     }
-    if speed <= 0.0 || tau <= 0.0 {
-        return Err(PyValueError::new_err("speed and tau must be more than 0"));
+    if speed <= 0.0 || tau <= 0.0 || step <= 0.0 {
+        return Err(PyValueError::new_err("speed, tau and step must be more than 0"));
     }
-    let p = c::GpsDtwParams { speed, tau, corridor_min, corridor_gap, segment, bearing_weight, gps_weight, window, top_k };
+    let p = c::GpsDtwParams { speed, tau, corridor_min, corridor_gap, segment, bearing_weight, gps_weight, window, top_k, step };
     let net = Arc::clone(&network.0);
     py.detach(|| c::match_gps_dtw(&net, &x, &y, &ts, &p)).map_err(PyValueError::new_err)
 }
@@ -87,13 +88,13 @@ fn match_trace(
 /// The input of the DTW for one trace: the cleaned GPS points, interpolated at 1 s (Bezier), with the
 /// confidence weight of each point. Returns (x, y, ts, origin, weight); origin = a real GPS point.
 #[pyfunction]
-#[pyo3(signature = (x, y, ts, *, tau=3.0))]
+#[pyo3(signature = (x, y, ts, *, tau=3.0, step=1.0))]
 #[allow(clippy::type_complexity)]
-fn interpolate(x: Vec<f64>, y: Vec<f64>, ts: Vec<i64>, tau: f64) -> PyResult<(Vec<f64>, Vec<f64>, Vec<i64>, Vec<bool>, Vec<f64>)> {
+fn interpolate(x: Vec<f64>, y: Vec<f64>, ts: Vec<i64>, tau: f64, step: f64) -> PyResult<(Vec<f64>, Vec<f64>, Vec<i64>, Vec<bool>, Vec<f64>)> {
     if y.len() != x.len() || ts.len() != x.len() {
         return Err(PyValueError::new_err("x, y and ts must have the same length"));
     }
-    let (px, py, pt, po) = c::prepare(&x, &y, &ts).map_err(PyValueError::new_err)?;
+    let (px, py, pt, po) = c::prepare(&x, &y, &ts, step).map_err(PyValueError::new_err)?;
     let w = c::weights(&pt, &po, tau);
     Ok((px, py, pt, po, w))
 }

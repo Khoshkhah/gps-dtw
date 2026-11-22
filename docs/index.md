@@ -44,22 +44,24 @@ divides the roads near the trace into points one second apart, and aligns the tw
 
     ---
 
-    5 to 23 ms for each 3-minute trace on one CPU core, with windows of one minute. Python calls one function.
+    4 to 31 ms for each 3-minute trace on one CPU core, with windows of one minute. Python calls one function.
     [Python API](reference/python.md)
 
 </div>
 
 ## Results
 
-600 simulated traces in Monaco. The values are recall / precision of the route edges (GPS-DTW: a sample of every third
-route; the duckOSM HMM: all traces).
+600 simulated traces in Monaco, both methods with their defaults. Recall / precision of the route edges, and the median
+time for each trace.
 
-| GPS interval | GPS-DTW (segment mode) | duckOSM HMM |
-|---|---|---|
-| 15 s | 0.94 / 0.95 | 0.93 / 0.96 |
-| 30 s | 0.92 / 0.92 | 0.90 / 0.96 |
+| GPS interval | GPS-DTW | duckOSM HMM | GPS-DTW time | HMM time |
+|---|---|---|---|---|
+| 1 s | 0.95 / 0.97 | 0.96 / 0.66 | 4 ms | 65 ms |
+| 5 s | 0.96 / 0.96 | 0.96 / 0.90 | 6 ms | 58 ms |
+| 15 s | 0.92 / 0.94 | 0.95 / 0.94 | 15 ms | 60 ms |
+| 30 s | 0.90 / 0.91 | 0.94 / 0.95 | 31 ms | 65 ms |
 
-GPS-DTW has the same recall as the HMM. Its precision is a little lower at 30 s. See [Results](results/index.md).
+GPS-DTW is 2 to 15 times faster and has a much higher precision at 1 s and 5 s. The HMM has a little more recall, and is better at 30 s. See [Results](results/index.md).
 
 !!! note "State of the project"
     GPS-DTW is a research project. The values on this site come from the Monaco test data in [Test data](results/data.md).
