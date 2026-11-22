@@ -38,7 +38,7 @@ divides the roads near the trace into points one second apart, and aligns the tw
     ---
 
     Compare segment with segment (the default), or point with point, with an optional bearing term.
-    [The cost](concepts/cost.md)
+    [Segment mode and node mode](concepts/cost.md)
 
 -   :material-language-rust:{ .lg .middle } **All in Rust**
 

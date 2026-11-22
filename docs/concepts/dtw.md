@@ -72,7 +72,7 @@ The vehicle can start and stop at any place on the road. So:
 
 The cost has the [confidence weight](confidence.md) `w` of the input point: `c(i, v) = wᵢ × distance`. An interpolated
 point far from a GPS point pulls the alignment less. In segment mode, the rows are input segments and the columns are
-road segments (see [The cost](cost.md)).
+road segments (see [Segment mode and node mode](cost.md)).
 
 ## From the alignment to the route
 

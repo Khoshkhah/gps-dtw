@@ -66,7 +66,7 @@ nav:
       - What DTW is: concepts/dtw.md
       - The steps: concepts/steps.md
       - One second on both sides: concepts/time-division.md
-      - The cost: concepts/cost.md
+      - Segment mode and node mode: concepts/cost.md
       - The confidence weight: concepts/confidence.md
   - Reference:
       - Overview: reference/index.md

@@ -4,7 +4,7 @@ The parameters of `gps_dtw.match_trace`.
 
 | Parameter | Default | Unit | What it does |
 |---|---|---|---|
-| `segment` | `True` | | `True`: segment mode. `False`: node mode. See [The cost](../concepts/cost.md). |
+| `segment` | `True` | | `True`: segment mode. `False`: node mode. See [Segment mode and node mode](../concepts/cost.md). |
 | `speed` | `12.0` | m/s | The road points are `speed × 1 s` apart. Use an approximate speed of the vehicle. |
 | `tau` | `3.0` | s | The time scale of the [confidence weight](../concepts/confidence.md). |
 | `bearing_weight` | `0.0` | m per degree | Segment mode: the weight of the angle difference. |
