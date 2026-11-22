@@ -61,7 +61,7 @@ time for each trace.
 | 15 s | 0.92 / 0.94 | 0.95 / 0.94 | 15 ms | 60 ms |
 | 30 s | 0.90 / 0.91 | 0.94 / 0.95 | 31 ms | 65 ms |
 
-GPS-DTW has a much higher precision at 1 s and 5 s, and is faster there (3.5 times at 1 s). The HMM has a little more recall, and is better and faster at 15 s and 30 s. See [Results](results/index.md).
+GPS-DTW is faster at each GPS interval (about 2 to 5 times) and has a much higher precision at 1 s and 5 s. The HMM has a little more recall, and is better at 30 s. See [Results](results/index.md).
 
 !!! note "State of the project"
     GPS-DTW is a research project. The values on this site come from the Monaco test data in [Test data](results/data.md).

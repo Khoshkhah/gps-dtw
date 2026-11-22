@@ -31,9 +31,9 @@ gap does not show this difference.
 
 | τ | 15 s | 30 s |
 |---|---|---|
-| 1 s | 0.949 / 0.902 | 0.908 / 0.854 |
-| **3 s (default)** | 0.944 / 0.951 | 0.918 / 0.922 |
-| 10 s | 0.935 / 0.950 | 0.822 / 0.879 |
+| 1 s | 0.943 / 0.903 | 0.908 / 0.889 |
+| **3 s (default)** | 0.937 / 0.941 | 0.908 / 0.916 |
+| 10 s | 0.927 / 0.939 | 0.835 / 0.892 |
 
 Recall / precision on the sample (every third route). With a long time scale, the points in the middle of a gap count
 too much. With a very short one, only the GPS points count, and the precision falls.

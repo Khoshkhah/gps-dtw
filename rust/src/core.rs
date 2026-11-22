@@ -397,6 +397,9 @@ pub fn interpolate(
 pub struct Network {
     pub shapes: Vec<Vec<P>>,
     pub next: Vec<Vec<usize>>,
+    /// the edges that each edge can follow (the reverse of `next`), and the length of each edge
+    prev: Vec<Vec<usize>>,
+    len: Vec<f64>,
     tree: RTree<GeomWithData<Rectangle<P>, usize>>,
 }
 
@@ -436,7 +439,14 @@ impl Network {
                 GeomWithData::new(Rectangle::from_corners(lo, hi), i)
             })
             .collect();
-        Network { shapes, next, tree: RTree::bulk_load(boxes) }
+        let mut prev: Vec<Vec<usize>> = vec![Vec::new(); shapes.len()];
+        for (a, nx) in next.iter().enumerate() {
+            for &b in nx {
+                prev[b].push(a);
+            }
+        }
+        let len = shapes.iter().map(|s| s.windows(2).map(|w| dist(w[0], w[1])).sum()).collect();
+        Network { shapes, next, prev, len, tree: RTree::bulk_load(boxes) }
     }
 
     /// `Net.getNeighboringEdges(x, y, r)`: the edges nearer than `r`, sorted by edge index.
@@ -485,12 +495,16 @@ pub struct GpsDtwParams {
     pub step: f64,
     /// The ends that a window keeps for the next window.
     pub top_k: usize,
+    /// The road points of a window come from the edges on a road path from its start edges to the edges near its last
+    /// point, no longer than `detour` x the trace length in the window (+ 50 m and the start and end edges), and near
+    /// a point of the window. 0: all edges near the points of the window.
+    pub detour: f64,
 }
 
 impl Default for GpsDtwParams {
     /// The defaults of the Python `match_trace`.
     fn default() -> Self {
-        GpsDtwParams { speed: 12.0, tau: 3.0, corridor_min: 30.0, corridor_gap: 1.0, segment: true, bearing_weight: 0.0, gps_weight: 5.0, window: 60, step: 1.0, top_k: 20 }
+        GpsDtwParams { speed: 12.0, tau: 3.0, corridor_min: 30.0, corridor_gap: 1.0, segment: true, bearing_weight: 0.0, gps_weight: 5.0, window: 60, step: 1.0, top_k: 20, detour: 1.2 }
     }
 }
 
@@ -768,7 +782,23 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
         // a window shares its first row with the last row of the window before
         let r1 = (r0 + win).min(nrows - 1).max(r0);
         let last_pt = if segment { r1 + 1 } else { r1 };
-        let mut edges: Vec<usize> = (r0..=last_pt).flat_map(|i| near[i].iter().copied()).collect();
+        let corridor: Vec<usize> = (r0..=last_pt).flat_map(|i| near[i].iter().copied()).collect();
+        let mut edges: Vec<usize> = if p.detour > 0.0 {
+            // the start edges: the kept ends, or the edges near the first point; the end edges: near the last point
+            let starts: Vec<usize> = match &kept {
+                Some(kp) => kp.iter().map(|q| q.key.0).collect(),
+                None => near[r0].clone(),
+            };
+            let ends = near[last_pt].clone();
+            let trace: f64 = (r0..last_pt).map(|i| dist([x[i], y[i]], [x[i + 1], y[i + 1]])).sum();
+            let longest = |v: &[usize]| v.iter().map(|&e| net.len[e]).fold(0.0, f64::max);
+            let limit = p.detour * trace + 50.0 + longest(&starts) + longest(&ends);
+            let near_window: std::collections::HashSet<usize> = corridor.iter().chain(&starts).chain(&ends).copied().collect();
+            let found = reachable(net, &starts, &ends, limit, &near_window);
+            if found.is_empty() { corridor } else { found }
+        } else {
+            corridor
+        };
         if let Some(kp) = &kept {
             edges.extend(kp.iter().map(|q| q.key.0));
         }
@@ -799,6 +829,51 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
         kept = Some(out);
         r0 = r1;
     }
+}
+
+/// The edges on a road path from an edge of `starts` to an edge of `ends` with a length (from the start of the start
+/// edge to the end of the end edge) of at most `limit`, through the edges of `allowed` only (the edges near the points
+/// of the window): a forward and a backward Dijkstra, and the edges where the two meet within the limit. Empty: no such
+/// path.
+fn reachable(net: &Network, starts: &[usize], ends: &[usize], limit: f64, allowed: &std::collections::HashSet<usize>) -> Vec<usize> {
+    let len = &net.len;
+    use std::cmp::Reverse;
+    use std::collections::{BinaryHeap, HashMap};
+    #[derive(PartialEq, PartialOrd)]
+    struct D(f64);
+    impl Eq for D {}
+    impl Ord for D {
+        fn cmp(&self, o: &Self) -> std::cmp::Ordering {
+            self.0.partial_cmp(&o.0).unwrap_or(std::cmp::Ordering::Equal)
+        }
+    }
+    // the distance to the far end of each edge from the seeds, along `adj`
+    let search = |seeds: &[usize], adj: &[Vec<usize>]| -> HashMap<usize, f64> {
+        let mut d: HashMap<usize, f64> = HashMap::new();
+        let mut h = BinaryHeap::new();
+        for &s in seeds {
+            d.insert(s, len[s]);
+            h.push(Reverse((D(len[s]), s)));
+        }
+        while let Some(Reverse((D(c), e))) = h.pop() {
+            if c > d[&e] || c > limit {
+                continue;
+            }
+            for &nx in &adj[e] {
+                let c2 = c + len[nx];
+                if c2 <= limit && allowed.contains(&nx) && d.get(&nx).is_none_or(|&o| c2 < o) {
+                    d.insert(nx, c2);
+                    h.push(Reverse((D(c2), nx)));
+                }
+            }
+        }
+        d
+    };
+    let fwd = search(starts, &net.next);
+    let bwd = search(ends, &net.prev);
+    let mut out: Vec<usize> = fwd.iter().filter_map(|(&e, &a)| bwd.get(&e).filter(|&&b| a + b - len[e] <= limit).map(|_| e)).collect();
+    out.sort_unstable();
+    out
 }
 
 /// The input of the DTW: `richdata`, then the Bezier interpolation each `step` seconds with the stopped repeats removed.
