@@ -2,6 +2,31 @@
 
 The sample of every third route. Segment mode unless stated.
 
+## Search radius
+
+The radius = `max(corridor_min, corridor_gap × median distance between two GPS points)`.
+
+| `corridor_gap` | Radius at 30 s | 15 s | 30 s | Time for each trace |
+|---|---|---|---|---|
+| 0.5 | about 134 m | 0.928 / 0.949 | 0.832 / 0.870 | 0.04 s |
+| **1.0 (default)** | about 270 m | 0.939 / 0.954 | 0.908 / 0.919 | 0.07 s |
+| 1.5 | about 400 m | 0.939 / 0.954 | 0.908 / 0.919 | 0.09 s |
+| 2.0 | about 540 m | 0.939 / 0.954 | 0.908 / 0.919 | 0.11 s |
+
+With 0.5, the true road of some 30 s traces goes out of the radius on a winding road, and the match fails almost
+completely (15 traces cause half of the recall loss). A radius larger than the GPS spacing gives no more gain.
+
+## Bearing weight with the default radius
+
+| Weight | 15 s | 30 s |
+|---|---|---|
+| 0 | 0.939 / 0.954 | 0.908 / 0.919 |
+| 0.05 | 0.940 / 0.954 | 0.895 / 0.922 |
+| 0.1 | 0.938 / 0.955 | 0.892 / 0.923 |
+| 0.3 | 0.936 / 0.962 | 0.848 / 0.910 |
+
+The tables below were measured with the old radius (`corridor_gap` 0.5).
+
 ## Mode
 
 | Mode | 15 s | 30 s |

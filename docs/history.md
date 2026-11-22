@@ -29,6 +29,11 @@ The approaches that we tested before GPS-DTW, and what we learned.
 Each input point got one projection onto a nearby edge, with a cost for the road distance against the input distance and
 a skip move. It made long detours. The time division replaced it.
 
+## The search radius
+
+The first default radius was half the GPS spacing (about 134 m at 30 s). On winding roads the true road went out of it.
+The radius is now the GPS spacing: 30 s went from 0.83 / 0.87 to 0.91 / 0.92.
+
 ## Lessons
 
 - Check the output of each step against its input before any tuning. The smoothing fault was found late.

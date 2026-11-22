@@ -43,7 +43,7 @@ impl Network {
 /// Match one GPS trace. `x`, `y`: the positions in the CRS of the network; `ts`: the time of each point in
 /// whole seconds, increasing. Returns the route as edge indexes, in driving order.
 #[pyfunction]
-#[pyo3(signature = (network, x, y, ts, *, speed=12.0, tau=3.0, corridor_min=30.0, corridor_gap=0.5, segment=true,
+#[pyo3(signature = (network, x, y, ts, *, speed=12.0, tau=3.0, corridor_min=30.0, corridor_gap=1.0, segment=true,
                     bearing_weight=0.0))]
 #[allow(clippy::too_many_arguments)]
 fn match_trace(

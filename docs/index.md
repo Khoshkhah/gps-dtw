@@ -56,10 +56,10 @@ route; the duckOSM HMM: all traces).
 
 | GPS interval | GPS-DTW (segment mode) | duckOSM HMM |
 |---|---|---|
-| 15 s | 0.93 / 0.95 | 0.93 / 0.96 |
-| 30 s | 0.83 / 0.87 | 0.90 / 0.96 |
+| 15 s | 0.94 / 0.95 | 0.93 / 0.96 |
+| 30 s | 0.91 / 0.92 | 0.90 / 0.96 |
 
-At 15 s GPS-DTW is close to the HMM. At 30 s its recall is still lower. See [Results](results/index.md).
+GPS-DTW has the same recall as the HMM. Its precision is a little lower at 30 s. See [Results](results/index.md).
 
 !!! note "State of the project"
     GPS-DTW is a research project. The values on this site come from the Monaco test data in [Test data](results/data.md).
