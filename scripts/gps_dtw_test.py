@@ -11,9 +11,14 @@ _N = {}
 
 def net():
     if not _N:
-        import duckosm, gps_dtw
+        import os, duckdb, duckosm, gps_dtw
         e = duckosm.open("monaco.duckdb").driving.edges(crs="utm")
-        _N["net"] = gps_dtw.Network([list(g.coords) for g in e.geometry], e.source.tolist(), e.target.tolist())
+        turns = None
+        if os.environ.get("GPSDTW_TURNS", "1") == "1":  # the turns of duckOSM's edge_graph (turn restrictions removed)
+            k = {int(x): i for i, x in enumerate(e.edge_id)}
+            g = duckdb.connect("monaco.duckdb", read_only=True).sql("select from_edge, to_edge from driving.edge_graph").fetchall()
+            turns = [(k[a], k[b]) for a, b in g if a in k and b in k]
+        _N["net"] = gps_dtw.Network([list(g.coords) for g in e.geometry], e.source.tolist(), e.target.tolist(), turns)
         _N["ids"] = e.edge_id.astype(int).tolist()
         _N["routes"] = pd.read_parquet("routes.parquet").set_index("route_id")
     return _N

@@ -6,12 +6,19 @@
 driving edges in UTM.
 
 ```python
-import duckosm, gps_dtw
+import duckdb, duckosm, gps_dtw
 
 edges = duckosm.open("monaco.duckdb").driving.edges(crs="utm")
-net = gps_dtw.Network([list(g.coords) for g in edges.geometry],
-                      edges.source.tolist(), edges.target.tolist())
 edge_ids = edges.edge_id.astype(int).tolist()
+
+# the allowed turns: duckOSM's edge_graph has no turn that a turn restriction forbids
+index = {e: i for i, e in enumerate(edge_ids)}
+pairs = duckdb.connect("monaco.duckdb", read_only=True).sql(
+    "select from_edge, to_edge from driving.edge_graph").fetchall()
+turns = [(index[a], index[b]) for a, b in pairs if a in index and b in index]
+
+net = gps_dtw.Network([list(g.coords) for g in edges.geometry],
+                      edges.source.tolist(), edges.target.tolist(), turns)
 ```
 
 Make the network one time and use it for all traces.

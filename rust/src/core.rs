@@ -393,16 +393,36 @@ pub fn interpolate(
 // The network and the R-tree (network.py, the part that the matcher reads)
 // ---------------------------------------------------------------------------------------------
 
-/// The road network: the shape of each edge in metres and its start and end node (0-based indexes).
+/// The road network: the shape of each edge in metres and the edges that can follow each edge (the turns).
 pub struct Network {
     pub shapes: Vec<Vec<P>>,
-    pub from: Vec<usize>,
-    pub to: Vec<usize>,
+    pub next: Vec<Vec<usize>>,
     tree: RTree<GeomWithData<Rectangle<P>, usize>>,
 }
 
 impl Network {
-    pub fn new(shapes: Vec<Vec<P>>, from: Vec<usize>, to: Vec<usize>) -> Self {
+    /// `turns`: the allowed (from edge, to edge) pairs, for example duckOSM's `edge_graph` (turn restrictions
+    /// removed). `None`: each edge that starts at the end node of an edge can follow it.
+    pub fn new(shapes: Vec<Vec<P>>, from: Vec<usize>, to: Vec<usize>, turns: Option<Vec<(usize, usize)>>) -> Self {
+        let mut next: Vec<Vec<usize>> = vec![Vec::new(); shapes.len()];
+        match turns {
+            Some(t) => {
+                for (a, b) in t {
+                    if a != b {
+                        next[a].push(b);
+                    }
+                }
+            }
+            None => {
+                let mut starts: std::collections::HashMap<usize, Vec<usize>> = std::collections::HashMap::new();
+                for (e, &n) in from.iter().enumerate() {
+                    starts.entry(n).or_default().push(e);
+                }
+                for (e, n) in to.iter().enumerate() {
+                    next[e] = starts.get(n).map(|v| v.iter().copied().filter(|&b| b != e).collect()).unwrap_or_default();
+                }
+            }
+        }
         let boxes = shapes
             .iter()
             .enumerate()
@@ -416,7 +436,7 @@ impl Network {
                 GeomWithData::new(Rectangle::from_corners(lo, hi), i)
             })
             .collect();
-        Network { shapes, from, to, tree: RTree::bulk_load(boxes) }
+        Network { shapes, next, tree: RTree::bulk_load(boxes) }
     }
 
     /// `Net.getNeighboringEdges(x, y, r)`: the edges nearer than `r`, sorted by edge index.
@@ -520,25 +540,21 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
     }
     let nv = vx.len();
     // arcs: along each edge, and from the last point of an edge to the first point of each edge that
-    // starts at its end node (the node table, not the geometry)
+    // can follow it (the turns of the network, not the geometry)
     let mut pred: Vec<Vec<usize>> = vec![Vec::new(); nv];
     let mut succ: Vec<Vec<usize>> = vec![Vec::new(); nv];
-    let mut first_of: std::collections::HashMap<usize, Vec<usize>> = std::collections::HashMap::new();
-    for (k, &e) in edges.iter().enumerate() {
-        first_of.entry(net.from[e]).or_default().push(span[k].0);
-    }
+    let pos: std::collections::HashMap<usize, usize> = edges.iter().enumerate().map(|(k, &e)| (e, k)).collect();
     for (k, &e) in edges.iter().enumerate() {
         let (f, m) = span[k];
         for t in 0..m - 1 {
             succ[f + t].push(f + t + 1);
             pred[f + t + 1].push(f + t);
         }
-        if let Some(starts) = first_of.get(&net.to[e]) {
-            for &s0 in starts {
-                if s0 != f {
-                    succ[f + m - 1].push(s0);
-                    pred[s0].push(f + m - 1);
-                }
+        for e2 in &net.next[e] {
+            if let Some(&k2) = pos.get(e2) {
+                let s0 = span[k2].0;
+                succ[f + m - 1].push(s0);
+                pred[s0].push(f + m - 1);
             }
         }
     }
@@ -678,19 +694,13 @@ fn segment_dtw(
             preds[k + 1].push(k);
         }
     }
-    let mut first_by_node: std::collections::HashMap<usize, Vec<usize>> = std::collections::HashMap::new();
+    let pos: std::collections::HashMap<usize, usize> = edges.iter().enumerate().map(|(k, &e)| (e, k)).collect();
     for (ei, &e) in edges.iter().enumerate() {
-        if let Some(fa) = first_arc[ei] {
-            first_by_node.entry(net.from[e]).or_default().push(fa);
-        }
-    }
-    for (ei, &e) in edges.iter().enumerate() {
-        if let (Some(la), Some(nexts)) = (last_arc[ei], first_by_node.get(&net.to[e])) {
-            for &fa in nexts {
-                if fa != first_arc[ei].unwrap_or(usize::MAX) {
-                    feeds[la].push(fa);
-                    preds[fa].push(la);
-                }
+        let Some(la) = last_arc[ei] else { continue };
+        for e2 in &net.next[e] {
+            if let Some(fa) = pos.get(e2).and_then(|&k2| first_arc[k2]) {
+                feeds[la].push(fa);
+                preds[fa].push(la);
             }
         }
     }

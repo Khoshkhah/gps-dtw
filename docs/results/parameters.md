@@ -16,6 +16,17 @@ The radius = `max(corridor_min, corridor_gap × median distance between two GPS 
 With 0.5, the true road of some 30 s traces goes out of the radius on a winding road, and the match fails almost
 completely (15 traces cause half of the recall loss). A radius larger than the GPS spacing gives no more gain.
 
+## Turn restrictions
+
+| Connections | Mode | 15 s | 30 s |
+|---|---|---|---|
+| all turns at a node | segment | 0.939 / 0.954 | 0.908 / 0.919 |
+| duckOSM `edge_graph` | segment | 0.940 / 0.956 | 0.906 / 0.924 |
+| all turns at a node | node | 0.929 / 0.962 | 0.899 / 0.929 |
+| duckOSM `edge_graph` | node | 0.930 / 0.963 | 0.903 / 0.931 |
+
+Without the turns, 12 of the 150 routes at 30 s used a forbidden turn.
+
 ## Bearing weight with the default radius
 
 | Weight | 15 s | 30 s |

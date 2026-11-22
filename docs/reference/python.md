@@ -3,7 +3,7 @@
 ## `gps_dtw.Network`
 
 ```python
-Network(coords, source, target)
+Network(coords, source, target, turns=None)
 ```
 
 | Argument | Type | Description |
@@ -11,6 +11,7 @@ Network(coords, source, target)
 | `coords` | `list[list[(float, float)]]` | the points of each edge in metres (a projected CRS, for example UTM); two points or more |
 | `source` | `list[int]` | the start node of each edge (any integer id) |
 | `target` | `list[int]` | the end node of each edge |
+| `turns` | `list[(int, int)]` or `None` | the allowed turns as (from edge index, to edge index), for example duckOSM's `driving.edge_graph`, where the turn restrictions are removed. `None`: each edge that starts at the end node of an edge can follow it (all turns and U-turns) |
 
 The edge index in a route is the position of the edge in these lists. A two-way road is two edges, one in each
 direction. `len(net)` gives the number of edges.

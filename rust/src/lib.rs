@@ -9,20 +9,28 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// The road network. `coords`: the points of each edge in metres (a projected CRS, for example UTM);
-/// `source`, `target`: the start node and the end node of each edge (any integer ids). The edge index in a
-/// route is the position of the edge in these lists.
+/// `source`, `target`: the start node and the end node of each edge (any integer ids). `turns` (optional): the
+/// allowed (from edge index, to edge index) pairs, for example duckOSM's `edge_graph`; without it, each edge
+/// that starts at the end node of an edge can follow it. The edge index in a route is the position of the
+/// edge in these lists.
 #[pyclass(frozen)]
 struct Network(Arc<c::Network>);
 
 #[pymethods]
 impl Network {
     #[new]
-    fn new(coords: Vec<Vec<(f64, f64)>>, source: Vec<i64>, target: Vec<i64>) -> PyResult<Self> {
+    #[pyo3(signature = (coords, source, target, turns=None))]
+    fn new(coords: Vec<Vec<(f64, f64)>>, source: Vec<i64>, target: Vec<i64>, turns: Option<Vec<(usize, usize)>>) -> PyResult<Self> {
         if source.len() != coords.len() || target.len() != coords.len() {
             return Err(PyValueError::new_err("coords, source and target must have the same length"));
         }
         if coords.iter().any(|s| s.len() < 2) {
             return Err(PyValueError::new_err("each edge needs two points or more"));
+        }
+        if let Some(t) = &turns {
+            if t.iter().any(|&(a, b)| a >= coords.len() || b >= coords.len()) {
+                return Err(PyValueError::new_err("a turn has an edge index out of range"));
+            }
         }
         let mut ids: HashMap<i64, usize> = HashMap::new();
         let mut index = |n: i64| {
@@ -32,7 +40,7 @@ impl Network {
         let from = source.iter().map(|&n| index(n)).collect();
         let to = target.iter().map(|&n| index(n)).collect();
         let shapes = coords.into_iter().map(|s| s.into_iter().map(|(x, y)| [x, y]).collect()).collect();
-        Ok(Network(Arc::new(c::Network::new(shapes, from, to))))
+        Ok(Network(Arc::new(c::Network::new(shapes, from, to, turns))))
     }
 
     fn __len__(&self) -> usize {

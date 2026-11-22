@@ -27,7 +27,8 @@ Each point gets a weight from its time to the nearest real GPS point. See [The c
    go far from the interpolated curve (a winding road), so the radius must grow with the GPS spacing.
 2. **The division.** Each edge gets a point each `speed × 1 s` from its start, along its shape, and its end point.
 3. **The connections.** A road point follows the previous point on its edge. The last point of an edge connects to the
-   first point of each edge that starts at its end node. The node table gives these connections, not the geometry.
+   first point of each edge that can follow it: the `turns` of the network (duckOSM's `edge_graph`, without the turns
+   that a turn restriction forbids), or, without `turns`, each edge that starts at its end node.
 
 See [One second on both sides](time-division.md).
 
