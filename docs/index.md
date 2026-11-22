@@ -57,7 +57,7 @@ route; the duckOSM HMM: all traces).
 | GPS interval | GPS-DTW (segment mode) | duckOSM HMM |
 |---|---|---|
 | 15 s | 0.94 / 0.95 | 0.93 / 0.96 |
-| 30 s | 0.91 / 0.92 | 0.90 / 0.96 |
+| 30 s | 0.92 / 0.92 | 0.90 / 0.96 |
 
 GPS-DTW has the same recall as the HMM. Its precision is a little lower at 30 s. See [Results](results/index.md).
 

@@ -13,7 +13,7 @@ w = 1 / (1 + (Δt / τ)²)
 |---|---|---|---|---|---|---|
 | w (τ = 3 s) | 1.00 | 0.90 | 0.50 | 0.20 | 0.08 | 0.04 |
 
-A real GPS point has `w = gps_weight` (default 1). A point in the middle of a 30 s gap has about `w = 0.04`.
+A real GPS point has `w = gps_weight` (default 5). A point in the middle of a 30 s gap has about `w = 0.04`.
 
 ## How it is used
 

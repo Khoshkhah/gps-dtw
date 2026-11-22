@@ -16,15 +16,31 @@ The radius = `max(corridor_min, corridor_gap × median distance between two GPS 
 With 0.5, the true road of some 30 s traces goes out of the radius on a winding road, and the match fails almost
 completely (15 traces cause half of the recall loss). A radius larger than the GPS spacing gives no more gain.
 
+## Bearing weight at each GPS interval
+
+With the defaults (`gps_weight` 5, the turn restrictions).
+
+| Setting | 1 s | 5 s | 15 s | 30 s |
+|---|---|---|---|---|
+| node mode | 0.959 / 0.987 | 0.959 / 0.969 | 0.949 / 0.963 | 0.922 / 0.929 |
+| segment, bearing 0 | 0.962 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 |
+| segment, bearing 0.05 | 0.958 / 0.978 | 0.962 / 0.966 | 0.944 / 0.954 | 0.916 / 0.925 |
+| segment, bearing 0.1 | 0.958 / 0.978 | 0.963 / 0.967 | 0.946 / 0.958 | 0.913 / 0.925 |
+| segment, bearing 0.2 | 0.957 / 0.976 | 0.964 / 0.968 | 0.946 / 0.957 | 0.901 / 0.921 |
+| segment, bearing 0.5 | 0.950 / 0.952 | 0.966 / 0.970 | 0.937 / 0.954 | 0.879 / 0.913 |
+
+The bearing helps a little at 5 s and 15 s. At 1 s, the bearing of a one-second step is noisy. At 30 s, the bearing of
+the interpolated curve is often wrong.
+
 ## Weight of the real GPS points
 
 With the turn restrictions (duckOSM `edge_graph`).
 
 | `gps_weight` | Segment 15 s | Segment 30 s | Node 15 s | Node 30 s |
 |---|---|---|---|---|
-| 1 (default) | 0.940 / 0.956 | 0.906 / 0.924 | 0.930 / 0.963 | 0.903 / 0.931 |
+| 1 | 0.940 / 0.956 | 0.906 / 0.924 | 0.930 / 0.963 | 0.903 / 0.931 |
 | 2 | 0.940 / 0.956 | 0.910 / 0.923 | 0.936 / 0.964 | 0.908 / 0.928 |
-| **5** | 0.944 / 0.951 | 0.918 / 0.921 | **0.949 / 0.963** | **0.922 / 0.929** |
+| **5 (default)** | 0.944 / 0.951 | 0.918 / 0.921 | **0.949 / 0.963** | **0.922 / 0.929** |
 | 10 | 0.947 / 0.933 | 0.920 / 0.911 | 0.950 / 0.945 | 0.926 / 0.921 |
 | 20 | 0.955 / 0.930 | 0.924 / 0.905 | 0.947 / 0.927 | 0.928 / 0.913 |
 | 50 | 0.948 / 0.892 | 0.907 / 0.833 | 0.946 / 0.899 | 0.914 / 0.848 |

@@ -52,7 +52,7 @@ impl Network {
 /// whole seconds, increasing. Returns the route as edge indexes, in driving order.
 #[pyfunction]
 #[pyo3(signature = (network, x, y, ts, *, speed=12.0, tau=3.0, corridor_min=30.0, corridor_gap=1.0, segment=true,
-                    bearing_weight=0.0, gps_weight=1.0))]
+                    bearing_weight=0.0, gps_weight=5.0))]
 #[allow(clippy::too_many_arguments)]
 fn match_trace(
     py: Python<'_>,

@@ -46,7 +46,8 @@ def one(key, g, kw):
 
 if __name__ == "__main__":
     T = pd.read_parquet("traces.parquet")
-    dts = (15, 30)
+    import os
+    dts = tuple(int(v) for v in os.environ.get("GPSDTW_DTS", "15,30").split(","))
     groups = [kg for kg in T.groupby(["route_id", "dt", "noise"]) if kg[0][1] in dts and kg[0][0] % 3 == 0]
     for js in sys.argv[1:]:
         kw = json.loads(js)

@@ -26,7 +26,7 @@ route = gps_dtw.match_trace(net, xs, ys, timestamps)  # edge indexes in driving 
 | GPS interval | GPS-DTW (segment mode) | duckOSM HMM |
 |---|---|---|
 | 15 s | 0.94 / 0.95 | 0.93 / 0.96 |
-| 30 s | 0.91 / 0.92 | 0.90 / 0.96 |
+| 30 s | 0.92 / 0.92 | 0.90 / 0.96 |
 
 ## Folders
 

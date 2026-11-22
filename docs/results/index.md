@@ -10,12 +10,14 @@ The scores of one trace:
 
 ## GPS-DTW (segment mode, defaults)
 
-A sample of every third route at 15 s and 30 s (102 traces):
+A sample of every third route (51 traces for each GPS interval), with the turn restrictions and the defaults:
 
 | GPS interval | Recall | Precision | Time for each trace |
 |---|---|---|---|
-| 15 s | 0.939 | 0.954 | 0.07 s |
-| 30 s | 0.908 | 0.919 | 0.07 s |
+| 1 s | 0.962 | 0.982 | 0.04 s |
+| 5 s | 0.961 | 0.959 | 0.04 s |
+| 15 s | 0.944 | 0.951 | 0.04 s |
+| 30 s | 0.918 | 0.921 | 0.04 s |
 
 | Page | Contents |
 |---|---|
