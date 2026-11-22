@@ -468,7 +468,8 @@ pub struct GpsDtwParams {
     pub speed: f64,
     /// The time scale (s) of the confidence weight 1 / (1 + (dt / tau)^2); dt = seconds to the nearest GPS point.
     pub tau: f64,
-    /// The road corridor: the edges within max(corridor_min, corridor_gap x the median GPS spacing) of the input.
+    /// The road corridor: the edges near the input points. The radius is corridor_min at a real GPS point and grows
+    /// to max(corridor_min, corridor_gap x the median GPS spacing) at the middle of a gap between two GPS points.
     pub corridor_min: f64,
     pub corridor_gap: f64,
     /// true (default): segment mode, an input segment (1 s) against a road segment (speed x 1 s);
@@ -744,7 +745,15 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
     gaps.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let med = if gaps.is_empty() { 0.0 } else { gaps[gaps.len() / 2] };
     let r = p.corridor_min.max(p.corridor_gap * med);
-    let near: Vec<Vec<usize>> = (0..n).map(|i| net.neighboring_edges(x[i], y[i], r).into_iter().map(|(e, _)| e).collect()).collect();
+    // the radius of each point: corridor_min at a real GPS point, growing with the seconds to the nearest GPS point to
+    // r at the middle of a gap (the median GPS interval / 2). A real point is sure; an interpolated point far from the
+    // GPS points can be far from the road.
+    let to_gps = seconds_to_gps(ts, origin);
+    let mut gt: Vec<f64> = gps.windows(2).map(|q| (ts[q[1]] - ts[q[0]]) as f64).collect();
+    gt.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let half = if gt.is_empty() { 1.0 } else { (gt[gt.len() / 2] / 2.0).max(1.0) };
+    let radius = |i: usize| p.corridor_min.max(r * (to_gps[i] / half).min(1.0));
+    let near: Vec<Vec<usize>> = (0..n).map(|i| net.neighboring_edges(x[i], y[i], radius(i)).into_iter().map(|(e, _)| e).collect()).collect();
     let segment = p.segment && n >= 2;
     // the rows: input points, or input segments (i, i + 1)
     let nrows = if segment { n - 1 } else { n };
