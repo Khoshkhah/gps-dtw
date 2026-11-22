@@ -486,6 +486,13 @@ pub struct GpsDtwParams {
     pub top_k: usize,
 }
 
+impl Default for GpsDtwParams {
+    /// The defaults of the Python `match_trace`.
+    fn default() -> Self {
+        GpsDtwParams { speed: 12.0, tau: 3.0, corridor_min: 30.0, corridor_gap: 1.0, segment: true, bearing_weight: 0.0, gps_weight: 5.0, window: 60, step: 1.0, top_k: 20 }
+    }
+}
+
 /// The seconds from each point to the nearest GPS point (`origin`).
 fn seconds_to_gps(ts: &[i64], origin: &[bool]) -> Vec<f64> {
     let o: Vec<i64> = ts.iter().zip(origin).filter(|(_, &g)| g).map(|(&t, _)| t).collect();
