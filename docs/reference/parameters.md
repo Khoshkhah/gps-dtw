@@ -1,6 +1,6 @@
 # Parameters
 
-The parameters of `nrt_matcher.match_gps_dtw`.
+The parameters of `gps_dtw.match_trace`.
 
 | Parameter | Default | Unit | What it does |
 |---|---|---|---|

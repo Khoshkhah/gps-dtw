@@ -2,17 +2,14 @@
 
 ## 1. Build the module
 
-The code is in the crate `rust/nrt-matcher` of NRTMapMatching, branch `kaveh/nrt-dtw`.
-
 ```bash
-git clone https://github.com/Khoshkhah/NRTMapMatching.git
-cd NRTMapMatching
-git checkout kaveh/nrt-dtw
-pip install ./rust/nrt-matcher
+git clone https://github.com/Khoshkhah/gps-dtw.git
+cd gps-dtw
+pip install ./rust
 ```
 
-The crate uses the Rust core of network-matching through a local path (`network-matching-core`, branch
-`kaveh/dtw-fixed-ends`) for the older per-gap method. GPS-DTW itself does not use it.
+The module has two Rust dependencies: `pyo3` (the Python binding) and `rstar` (the R-tree that finds the edges near the
+trace).
 
 !!! tip "Memory"
     On a computer with little memory, set `CARGO_BUILD_JOBS=4` before the build.
@@ -23,11 +20,12 @@ The crate uses the Rust core of network-matching through a local path (`network-
 pip install duckosm
 ```
 
-duckOSM makes the road network of an area (see the [duckOSM manual](https://khoshkhah.github.io/duckOSM/)).
+duckOSM makes the road network of an area (see the [duckOSM manual](https://khoshkhah.github.io/duckOSM/)). You can also
+use a network from another source: GPS-DTW needs only the shape, the start node and the end node of each edge.
 
 ## 3. Check
 
 ```python
-import nrt_matcher
-print(nrt_matcher.match_gps_dtw.__text_signature__)
+import gps_dtw
+help(gps_dtw.match_trace)
 ```

@@ -62,5 +62,4 @@ route; the duckOSM HMM: all traces).
 At 15 s GPS-DTW is close to the HMM. At 30 s its recall is still lower. See [Results](results/index.md).
 
 !!! note "State of the project"
-    GPS-DTW is a research project. The Rust code is on the branch `kaveh/nrt-dtw` of NRTMapMatching (crate
-    `rust/nrt-matcher`). The values on this site come from the Monaco test data in [Test data](results/data.md).
+    GPS-DTW is a research project. The values on this site come from the Monaco test data in [Test data](results/data.md).

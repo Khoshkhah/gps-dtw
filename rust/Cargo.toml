@@ -1,0 +1,20 @@
+[package]
+name = "gps-dtw"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Kaveh Khoshkhah"]
+description = "GPS-DTW: map matching of GPS traces with dynamic time warping"
+
+[lib]
+# The Python module gps_dtw. core.rs is plain Rust; lib.rs is the pyo3 binding.
+name = "gps_dtw"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.30", features = ["abi3-py39", "extension-module"] }
+rstar = "0.12"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
