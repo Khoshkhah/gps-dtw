@@ -1,0 +1,50 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap");
+
+/* GPS-DTW brand: navy ink, one teal (the road) and one amber (the GPS points), as in the logo */
+:root {
+  --gd-ink: #14213d;
+  --gd-teal: #2ec4b6;
+  --gd-amber: #fca311;
+  --gd-paper: #f7f7f2;
+}
+
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color: var(--gd-ink);
+  --md-primary-fg-color--light: #233357;
+  --md-primary-fg-color--dark: #0b1324;
+  --md-primary-bg-color: var(--gd-paper);
+  --md-primary-bg-color--light: #f7f7f2b3;
+}
+
+/* light theme: links in a dark teal that reads on white; the current menu item gets the teal */
+[data-md-color-scheme="default"][data-md-color-accent="custom"] {
+  --md-accent-fg-color: #128c82;
+  --md-accent-fg-color--transparent: #2ec4b640;
+  --md-typeset-a-color: #128c82;
+}
+[data-md-color-scheme="default"] .md-nav__link--active { color: var(--gd-ink); background: #2ec4b655; border-radius: 0.3rem; }
+[data-md-color-scheme="default"] .md-nav__link:hover,
+[data-md-color-scheme="default"] .md-nav__link:focus { color: var(--gd-ink); background: #2ec4b633; border-radius: 0.3rem; }
+
+/* dark theme: a soft dark gray (GitHub "dark dimmed"), teal links */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #22272e;
+  --md-default-fg-color: #adbac7;
+  --md-default-fg-color--light: #8b98a5;
+  --md-default-fg-color--lighter: #636e7b;
+  --md-default-fg-color--lightest: #444c56;
+  --md-code-bg-color: #2d333b;
+}
+[data-md-color-scheme="slate"][data-md-color-accent="custom"] {
+  --md-accent-fg-color: var(--gd-teal);
+  --md-typeset-a-color: var(--gd-teal);
+}
+
+.md-typeset h1, .md-typeset h2, .md-header__title { font-family: "Space Grotesk", var(--md-text-font-family), sans-serif; }
+.md-typeset h1 { font-weight: 700; }
+
+/* home page */
+.hero-actions { margin: 1.2rem 0 1.6rem; }
+.hero-actions .md-button { margin: 0 0.4rem 0.5rem 0; }
+.md-typeset .md-button--primary { background: var(--gd-teal); border-color: var(--gd-teal); color: var(--gd-ink); }
+.md-typeset .grid.cards > ul > li { border-radius: 0.5rem; }
