@@ -16,6 +16,23 @@ The radius = `max(corridor_min, corridor_gap × median distance between two GPS 
 With 0.5, the true road of some 30 s traces goes out of the radius on a winding road, and the match fails almost
 completely (15 traces cause half of the recall loss). A radius larger than the GPS spacing gives no more gain.
 
+## Weight of the real GPS points
+
+With the turn restrictions (duckOSM `edge_graph`).
+
+| `gps_weight` | Segment 15 s | Segment 30 s | Node 15 s | Node 30 s |
+|---|---|---|---|---|
+| 1 (default) | 0.940 / 0.956 | 0.906 / 0.924 | 0.930 / 0.963 | 0.903 / 0.931 |
+| 2 | 0.940 / 0.956 | 0.910 / 0.923 | 0.936 / 0.964 | 0.908 / 0.928 |
+| **5** | 0.944 / 0.951 | 0.918 / 0.921 | **0.949 / 0.963** | **0.922 / 0.929** |
+| 10 | 0.947 / 0.933 | 0.920 / 0.911 | 0.950 / 0.945 | 0.926 / 0.921 |
+| 20 | 0.955 / 0.930 | 0.924 / 0.905 | 0.947 / 0.927 | 0.928 / 0.913 |
+| 50 | 0.948 / 0.892 | 0.907 / 0.833 | 0.946 / 0.899 | 0.914 / 0.848 |
+
+A higher weight pulls the route through the real GPS points: the recall goes up. Above 5, the precision goes down,
+because a noisy GPS point then pulls the route onto a wrong road near it. Node mode with `gps_weight = 5` is the best
+setting.
+
 ## Turn restrictions
 
 | Connections | Mode | 15 s | 30 s |

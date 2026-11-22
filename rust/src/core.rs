@@ -476,6 +476,8 @@ pub struct GpsDtwParams {
     pub segment: bool,
     /// Segment mode: the weight of the angle difference (degrees) between the two segments.
     pub bearing_weight: f64,
+    /// The confidence weight of a real GPS point (an interpolated point has at most 1).
+    pub gps_weight: f64,
 }
 
 /// The seconds from each point to the nearest GPS point (`origin`).
@@ -510,7 +512,12 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
     if n == 0 {
         return Vec::new();
     }
-    let w = weights(ts, origin, p.tau);
+    let mut w = weights(ts, origin, p.tau);
+    for (wi, &o) in w.iter_mut().zip(origin) {
+        if o {
+            *wi = p.gps_weight;
+        }
+    }
     // the road corridor
     let gps: Vec<usize> = (0..n).filter(|&i| origin[i]).collect();
     let mut gaps: Vec<f64> = gps.windows(2).map(|q| dist([x[q[0]], y[q[0]]], [x[q[1]], y[q[1]]])).collect();
