@@ -21,10 +21,13 @@ Each point gets a weight from its time to the nearest real GPS point. See [The c
 
 ## 4. Divide the roads
 
-1. **The search radius (the corridor).** GPS-DTW uses only the edges within `r` of the input points:
-   `r = max(corridor_min, corridor_gap × median distance between two GPS points)`. With the defaults (30 m, 1.0), `r`
-   equals the GPS spacing: about 160 m at 15 s and 270 m at 30 s in Monaco. Between two GPS points the true road can
-   go far from the interpolated curve (a winding road), so the radius must grow with the GPS spacing.
+1. **The search radius (the corridor).** GPS-DTW uses only the edges near the input points. Each point has its own
+   radius. At a real GPS point it is `corridor_min` (30 m): the GPS point is near its road. At an interpolated point
+   it grows with the seconds to the nearest GPS point, up to `r = max(corridor_min, corridor_gap × median distance
+   between two GPS points)` at the middle of a gap. With the defaults, `r` equals the GPS spacing: about 160 m at
+   15 s and 270 m at 30 s in Monaco. Between two GPS points the true road can go far from the interpolated curve (a
+   winding road), so the radius must grow there. Near the GPS points it does not need to: there the small radius
+   keeps out the far edges, and the DTW has fewer road points.
 2. **The division.** Each edge gets a point each `speed × 1 s` from its start, along its shape, and its end point.
 3. **The connections.** A road point follows the previous point on its edge. The last point of an edge connects to the
    first point of each edge that can follow it: the `turns` of the network (duckOSM's `edge_graph`, without the turns
