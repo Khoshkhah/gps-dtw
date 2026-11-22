@@ -11,8 +11,13 @@ description = "GPS-DTW: map matching of GPS traces with dynamic time warping"
 name = "gps_dtw"
 crate-type = ["cdylib", "rlib"]
 
+[features]
+# the Python module (maturin builds it); off for a Rust program that uses only `core`
+default = ["python"]
+python = ["dep:pyo3"]
+
 [dependencies]
-pyo3 = { version = "0.30", features = ["abi3-py39", "extension-module"] }
+pyo3 = { version = "0.30", features = ["abi3-py39", "extension-module"], optional = true }
 rstar = "0.12"
 
 [profile.release]
