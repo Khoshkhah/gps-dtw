@@ -14,10 +14,10 @@ A sample of every third route (51 traces for each GPS interval), with the turn r
 
 | GPS interval | Recall | Precision | Time for each trace |
 |---|---|---|---|
-| 1 s | 0.962 | 0.982 | 0.04 s |
-| 5 s | 0.961 | 0.959 | 0.04 s |
-| 15 s | 0.944 | 0.951 | 0.04 s |
-| 30 s | 0.918 | 0.921 | 0.04 s |
+| 1 s | 0.963 | 0.982 | 5 ms |
+| 5 s | 0.961 | 0.959 | 6 ms |
+| 15 s | 0.944 | 0.951 | 13 ms |
+| 30 s | 0.918 | 0.921 | 23 ms |
 
 | Page | Contents |
 |---|---|

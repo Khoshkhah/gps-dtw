@@ -52,7 +52,7 @@ impl Network {
 /// whole seconds, increasing. Returns the route as edge indexes, in driving order.
 #[pyfunction]
 #[pyo3(signature = (network, x, y, ts, *, speed=12.0, tau=3.0, corridor_min=30.0, corridor_gap=1.0, segment=true,
-                    bearing_weight=0.0, gps_weight=5.0))]
+                    bearing_weight=0.0, gps_weight=5.0, window=60, top_k=20))]
 #[allow(clippy::too_many_arguments)]
 fn match_trace(
     py: Python<'_>,
@@ -67,6 +67,8 @@ fn match_trace(
     segment: bool,
     bearing_weight: f64,
     gps_weight: f64,
+    window: usize,
+    top_k: usize,
 ) -> PyResult<Vec<usize>> {
     if y.len() != x.len() || ts.len() != x.len() {
         return Err(PyValueError::new_err("x, y and ts must have the same length"));
@@ -77,7 +79,7 @@ fn match_trace(
     if speed <= 0.0 || tau <= 0.0 {
         return Err(PyValueError::new_err("speed and tau must be more than 0"));
     }
-    let p = c::GpsDtwParams { speed, tau, corridor_min, corridor_gap, segment, bearing_weight, gps_weight };
+    let p = c::GpsDtwParams { speed, tau, corridor_min, corridor_gap, segment, bearing_weight, gps_weight, window, top_k };
     let net = Arc::clone(&network.0);
     py.detach(|| c::match_gps_dtw(&net, &x, &y, &ts, &p)).map_err(PyValueError::new_err)
 }

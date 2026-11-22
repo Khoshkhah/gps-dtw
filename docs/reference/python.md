@@ -20,7 +20,7 @@ direction. `len(net)` gives the number of edges.
 
 ```python
 match_trace(network, x, y, ts, *, speed=12.0, tau=3.0, corridor_min=30.0, corridor_gap=1.0,
-            segment=True, bearing_weight=0.0, gps_weight=5.0) -> list[int]
+            segment=True, bearing_weight=0.0, gps_weight=5.0, window=60, top_k=20) -> list[int]
 ```
 
 | Argument | Type | Description |

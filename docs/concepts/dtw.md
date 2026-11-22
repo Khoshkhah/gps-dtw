@@ -79,8 +79,17 @@ road segments (see [Segment mode and node mode](cost.md)).
 The backtrack from the best last cell gives one road point (or road segment) for each step. Each road point is on one
 edge. The route is the sequence of these edges, with each edge one time for each pass.
 
-## Size
+## Windows and top k
 
-The table has `n × V` cells: `n` input points and `V` road points in the corridor. A 10-minute trace has 600 input
-points; the corridor in Monaco has some thousands of road points. GPS-DTW keeps the whole table in memory. A version
-with windows and the top `k` road points of each window is a later step.
+The full table has `n × V` cells: `n` input points and `V` road points near the whole trace. A row at the start of the
+trip also has columns for roads at the end of the trip, which are kilometres away. So GPS-DTW goes in windows:
+
+1. A window has `window` rows (default 60: one minute) and only the road points near those rows.
+2. At the last row of the window, GPS-DTW keeps the best `top_k` ends (default 20), one for each edge, with their cost
+   and their route so far.
+3. The next window starts at that row, only from the kept ends.
+4. The last window keeps only its best end. Its route is the result.
+
+The work grows with the trip length, not with the trip length × the road area. With the defaults, the results are the
+same as the full DTW and the time is about 2.5 times less (see [Effect of the parameters](../results/parameters.md)).
+`window = 0` gives the full DTW.

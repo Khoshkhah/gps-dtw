@@ -16,6 +16,28 @@ The radius = `max(corridor_min, corridor_gap × median distance between two GPS 
 With 0.5, the true road of some 30 s traces goes out of the radius on a winding road, and the match fails almost
 completely (15 traces cause half of the recall loss). A radius larger than the GPS spacing gives no more gain.
 
+## Windows and top k
+
+| Setting | 1 s | 5 s | 15 s | 30 s | Time (median) |
+|---|---|---|---|---|---|
+| full DTW (`window` 0) | 0.962 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 40 ms |
+| window 30, k 5 | 0.930 / 0.966 | 0.959 / 0.957 | 0.935 / 0.936 | 0.908 / 0.908 | 9 ms |
+| window 30, k 20 | 0.946 / 0.973 | 0.960 / 0.958 | 0.944 / 0.951 | 0.918 / 0.916 | 11 ms |
+| window 60, k 10 | 0.954 / 0.978 | 0.960 / 0.959 | 0.941 / 0.946 | 0.918 / 0.921 | 16 ms |
+| **window 60, k 20 (default)** | 0.963 / 0.982 | 0.961 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 19 ms |
+| window 120, k 10 | 0.963 / 0.982 | 0.960 / 0.959 | 0.944 / 0.951 | 0.918 / 0.921 | 28 ms |
+
+Time for each trace (median, ms, one thread) at each GPS interval:
+
+| GPS interval | Full DTW | Window 60, k 20 | duckOSM HMM (an earlier run) |
+|---|---|---|---|
+| 1 s | 11.6 | 4.6 | 66.5 |
+| 5 s | 16.2 | 6.0 | 57.9 |
+| 15 s | 34.7 | 13.0 | 57.8 |
+| 30 s | 59.7 | 22.8 | 59.3 |
+
+A short window or a small `k` loses the true road at a window border, mostly at 1 s.
+
 ## Bearing weight at each GPS interval
 
 With the defaults (`gps_weight` 5, the turn restrictions).

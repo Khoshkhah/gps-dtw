@@ -44,7 +44,7 @@ divides the roads near the trace into points one second apart, and aligns the tw
 
     ---
 
-    About 0.02 s for each trace on one CPU core. Python calls one function.
+    5 to 23 ms for each 3-minute trace on one CPU core, with windows of one minute. Python calls one function.
     [Python API](reference/python.md)
 
 </div>

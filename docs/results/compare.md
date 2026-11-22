@@ -9,7 +9,7 @@ Recall / precision. GPS-DTW: the sample of every third route. The other methods:
 | duckOSM HMM (Newson-Krumm, Rust) | 0.93 / 0.96 | 0.90 / 0.96 |
 | NRT + DTW for each gap (beam matcher + graph-DTW top 10) | 0.94 / 0.82 | 0.91 / 0.84 |
 
-GPS-DTW needs about 0.04 s for each trace on one CPU core.
+GPS-DTW needs 5 to 23 ms (1 s to 30 s GPS) for each trace on one CPU core.
 
 ## Summary
 

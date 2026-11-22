@@ -478,6 +478,10 @@ pub struct GpsDtwParams {
     pub bearing_weight: f64,
     /// The confidence weight of a real GPS point (an interpolated point has at most 1).
     pub gps_weight: f64,
+    /// The rows (seconds) in one window; 0 = one window for the whole track.
+    pub window: usize,
+    /// The ends that a window keeps for the next window.
+    pub top_k: usize,
 }
 
 /// The seconds from each point to the nearest GPS point (`origin`).
@@ -506,88 +510,129 @@ fn points_each(s: &[P], spacing: f64) -> Vec<P> {
     out
 }
 
-/// GPS-DTW on one track (`x`, `y` at `ts`; `origin` = a GPS point). Returns the route (edges).
-pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool], p: &GpsDtwParams) -> Vec<usize> {
-    let n = x.len();
-    if n == 0 {
-        return Vec::new();
-    }
-    let mut w = weights(ts, origin, p.tau);
-    for (wi, &o) in w.iter_mut().zip(origin) {
-        if o {
-            *wi = p.gps_weight;
-        }
-    }
-    // the road corridor
-    let gps: Vec<usize> = (0..n).filter(|&i| origin[i]).collect();
-    let mut gaps: Vec<f64> = gps.windows(2).map(|q| dist([x[q[0]], y[q[0]]], [x[q[1]], y[q[1]]])).collect();
-    gaps.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let med = if gaps.is_empty() { 0.0 } else { gaps[gaps.len() / 2] };
-    let r = p.corridor_min.max(p.corridor_gap * med);
-    let mut edges: Vec<usize> = Vec::new();
-    for i in 0..n {
-        edges.extend(net.neighboring_edges(x[i], y[i], r).into_iter().map(|(e, _)| e));
-    }
-    edges.sort_unstable();
-    edges.dedup();
-    if edges.is_empty() {
-        return Vec::new();
-    }
-    // the road points: each edge divided into points `speed x 1 s` apart
-    let mut vx: Vec<P> = Vec::new();
-    let mut vedge: Vec<usize> = Vec::new();
-    let mut span: Vec<(usize, usize)> = Vec::new(); // first vertex, count, for each corridor edge
-    for &e in &edges {
-        let pts = points_each(&net.shapes[e], p.speed.max(0.1));
-        span.push((vx.len(), pts.len()));
-        for q in pts {
-            vx.push(q);
-            vedge.push(e);
-        }
-    }
-    let nv = vx.len();
-    // arcs: along each edge, and from the last point of an edge to the first point of each edge that
-    // can follow it (the turns of the network, not the geometry)
-    let mut pred: Vec<Vec<usize>> = vec![Vec::new(); nv];
-    let mut succ: Vec<Vec<usize>> = vec![Vec::new(); nv];
-    let pos: std::collections::HashMap<usize, usize> = edges.iter().enumerate().map(|(k, &e)| (e, k)).collect();
-    for (k, &e) in edges.iter().enumerate() {
-        let (f, m) = span[k];
-        for t in 0..m - 1 {
-            succ[f + t].push(f + t + 1);
-            pred[f + t + 1].push(f + t);
-        }
-        for e2 in &net.next[e] {
-            if let Some(&k2) = pos.get(e2) {
-                let s0 = span[k2].0;
-                succ[f + m - 1].push(s0);
-                pred[s0].push(f + m - 1);
+/// The DTW states of one window: the road points (node mode) or the road segments (segment mode) of the
+/// edges near the window's input, and the moves between them.
+struct States {
+    /// (edge, index on the edge): the same road point or segment has the same key in each window.
+    key: Vec<(usize, usize)>,
+    edge: Vec<usize>,
+    /// the road point, or the middle of the road segment
+    pos: Vec<P>,
+    /// segment mode: the bearing of the road segment
+    bear: Vec<f64>,
+    pred: Vec<Vec<usize>>,
+    succ: Vec<Vec<usize>>,
+}
+
+fn build_states(net: &Network, edges: &[usize], spacing: f64, segment: bool) -> States {
+    let mut st = States { key: vec![], edge: vec![], pos: vec![], bear: vec![], pred: vec![], succ: vec![] };
+    // the first and the last state of each edge (None: the edge has no state)
+    let mut ends: Vec<Option<(usize, usize)>> = Vec::with_capacity(edges.len());
+    for &e in edges {
+        let pts = points_each(&net.shapes[e], spacing);
+        let first = st.key.len();
+        let mut prev: Option<(usize, usize)> = None; // (state, index on the edge)
+        let add = |st: &mut States, t: usize, pos: P, bear: f64, prev: &mut Option<(usize, usize)>| {
+            let k = st.key.len();
+            st.key.push((e, t));
+            st.edge.push(e);
+            st.pos.push(pos);
+            st.bear.push(bear);
+            st.pred.push(Vec::new());
+            st.succ.push(Vec::new());
+            if let Some((q, tq)) = *prev {
+                if tq + 1 == t {
+                    st.succ[q].push(k);
+                    st.pred[k].push(q);
+                }
             }
-        }
-    }
-    if p.segment && n >= 2 {
-        return segment_dtw(x, y, &w, &vx, &vedge, &edges, &span, net, p.bearing_weight);
-    }
-    // the DP: d[i][v] = the lowest cost of an alignment that ends with input point i on road point v
-    let mut d = vec![f64::INFINITY; n * nv];
-    let mut back = vec![(0u8, usize::MAX); n * nv]; // (move, from): 0 start, 1 input only, 2 both, 3 road only
-    let mut e = vec![0.0; nv];
-    let mut heap: std::collections::BinaryHeap<std::cmp::Reverse<(u64, usize)>> = std::collections::BinaryHeap::new();
-    for i in 0..n {
-        for v in 0..nv {
-            e[v] = w[i] * dist([x[i], y[i]], vx[v]);
-        }
-        let row = i * nv;
-        if i == 0 {
-            for v in 0..nv {
-                d[v] = e[v];
+            *prev = Some((k, t));
+        };
+        if segment {
+            for t in 0..pts.len().saturating_sub(1) {
+                let (a, b) = (pts[t], pts[t + 1]);
+                if dist(a, b) > 1e-6 {
+                    add(&mut st, t, [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0], bearing(a, b), &mut prev);
+                }
             }
         } else {
-            let prev = (i - 1) * nv;
-            for v in 0..nv {
+            for (t, &q) in pts.iter().enumerate() {
+                add(&mut st, t, q, 0.0, &mut prev);
+            }
+        }
+        let last = st.key.len();
+        ends.push((last > first).then(|| (first, last - 1)));
+    }
+    // the moves from the last state of an edge to the first state of each edge that can follow it
+    let pos: std::collections::HashMap<usize, usize> = edges.iter().enumerate().map(|(k, &e)| (e, k)).collect();
+    for (k, &e) in edges.iter().enumerate() {
+        let Some((_, la)) = ends[k] else { continue };
+        for e2 in &net.next[e] {
+            if let Some((fa, _)) = pos.get(e2).and_then(|&k2| ends[k2]) {
+                st.succ[la].push(fa);
+                st.pred[fa].push(la);
+            }
+        }
+    }
+    st
+}
+
+/// A kept end of a window: a state key, the cost so far and the route so far.
+#[derive(Clone)]
+struct Kept {
+    key: (usize, usize),
+    cost: f64,
+    route: Vec<usize>,
+}
+
+/// The DTW over the rows `r0..=r1` of one window. `cost(row, state)` is the cell cost. `start`: the kept ends of
+/// the window before (at row `r0`), or None for an open start. Returns the best `k` ends at row `r1`, one for
+/// each edge, best first.
+fn window_dtw(
+    st: &States,
+    r0: usize,
+    r1: usize,
+    cost: &dyn Fn(usize, usize) -> f64,
+    start: Option<&[Kept]>,
+    k: usize,
+) -> Vec<Kept> {
+    let ns = st.key.len();
+    let nr = r1 - r0 + 1;
+    if ns == 0 {
+        return Vec::new();
+    }
+    let mut d = vec![f64::INFINITY; nr * ns];
+    let mut back = vec![(0u8, usize::MAX); nr * ns]; // (move, from): 0 start, 1 input only, 2 both, 3 road only
+    let mut from_kept = vec![usize::MAX; ns]; // row r0: the kept end that a state starts from
+    let mut e = vec![0.0; ns];
+    let mut heap: std::collections::BinaryHeap<std::cmp::Reverse<(u64, usize)>> = std::collections::BinaryHeap::new();
+    for i in 0..nr {
+        for v in 0..ns {
+            e[v] = cost(r0 + i, v);
+        }
+        let row = i * ns;
+        if i == 0 {
+            match start {
+                None => d[..ns].copy_from_slice(&e[..ns]),
+                Some(kept) => {
+                    let at: std::collections::HashMap<(usize, usize), usize> =
+                        st.key.iter().enumerate().map(|(v, &q)| (q, v)).collect();
+                    for (j, kp) in kept.iter().enumerate() {
+                        if let Some(&v) = at.get(&kp.key) {
+                            if kp.cost < d[v] {
+                                d[v] = kp.cost;
+                                from_kept[v] = j;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            let prev = (i - 1) * ns;
+            for v in 0..ns {
                 let mut c = d[prev + v];
                 let mut b = (1u8, v);
-                for &u in &pred[v] {
+                for &u in &st.pred[v] {
                     if d[prev + u] < c {
                         c = d[prev + u];
                         b = (2u8, u);
@@ -599,9 +644,9 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
                 }
             }
         }
-        // the road-only moves within the row (Dijkstra: the input point stays, the road goes on)
+        // the road-only moves within the row (Dijkstra: the input stays, the road goes on)
         heap.clear();
-        for v in 0..nv {
+        for v in 0..ns {
             if d[row + v].is_finite() {
                 heap.push(std::cmp::Reverse((d[row + v].to_bits(), v)));
             }
@@ -611,7 +656,7 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
             if c > d[row + v] {
                 continue;
             }
-            for &u in &succ[v] {
+            for &u in &st.succ[v] {
                 let c2 = c + e[u];
                 if c2 < d[row + u] {
                     d[row + u] = c2;
@@ -621,185 +666,121 @@ pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool],
             }
         }
     }
-    // open end: the best road point of the last input point; back to the start
-    let last = (n - 1) * nv;
-    let mut v = (0..nv).fold(0, |b, q| if d[last + q] < d[last + b] { q } else { b });
-    if !d[last + v].is_finite() {
-        return Vec::new();
-    }
-    let mut i = n - 1;
-    let mut seq: Vec<usize> = vec![v];
-    loop {
-        let (mv, u) = back[i * nv + v];
-        match mv {
-            1 => i -= 1,
-            2 => {
-                i -= 1;
-                v = u;
+    // the best end state of each edge at the last row, best first (ties: the lower state index)
+    let last = (nr - 1) * ns;
+    let mut best_of: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+    for v in 0..ns {
+        if d[last + v].is_finite() {
+            let b = best_of.entry(st.edge[v]).or_insert(v);
+            if d[last + v] < d[last + *b] {
+                *b = v;
             }
-            3 => v = u,
-            _ => break,
-        }
-        seq.push(v);
-    }
-    seq.reverse();
-    let mut route: Vec<usize> = Vec::new();
-    for v in seq {
-        if route.last() != Some(&vedge[v]) {
-            route.push(vedge[v]);
         }
     }
-    route
+    let mut ends: Vec<usize> = best_of.into_values().collect();
+    ends.sort_by(|&a, &b| d[last + a].total_cmp(&d[last + b]).then(a.cmp(&b)));
+    ends.truncate(k.max(1));
+    ends.into_iter()
+        .map(|v0| {
+            // back to row r0
+            let (mut i, mut v) = (nr - 1, v0);
+            let mut seq = vec![v];
+            loop {
+                let (mv, u) = back[i * ns + v];
+                match mv {
+                    1 => i -= 1,
+                    2 => {
+                        i -= 1;
+                        v = u;
+                    }
+                    3 => v = u,
+                    _ => break,
+                }
+                seq.push(v);
+            }
+            seq.reverse();
+            let mut route = match start {
+                Some(kept) => kept[from_kept[seq[0]]].route.clone(),
+                None => Vec::new(),
+            };
+            for v in seq {
+                if route.last() != Some(&st.edge[v]) {
+                    route.push(st.edge[v]);
+                }
+            }
+            Kept { key: st.key[v0], cost: d[last + v0], route }
+        })
+        .collect()
 }
 
-/// The segment mode of [`gps_dtw`]: states = (input segment s, road segment k). The cost of a state =
-/// the segment's confidence weight x (distance between the two middles + `bw` x angle difference).
-/// Moves: both on (k follows the previous road segment), input only (same road segment), road only
-/// (within a row, along the road). Returns the route (edges).
-#[allow(clippy::too_many_arguments)]
-fn segment_dtw(
-    x: &[f64],
-    y: &[f64],
-    w: &[f64],
-    vx: &[P],
-    vedge: &[usize],
-    edges: &[usize],
-    span: &[(usize, usize)],
-    net: &Network,
-    bw: f64,
-) -> Vec<usize> {
-    // the road segments: consecutive road points of one edge (zero-length ones left out)
-    let mut au: Vec<usize> = Vec::new();
-    let mut av: Vec<usize> = Vec::new();
-    let mut first_arc: Vec<Option<usize>> = Vec::new();
-    let mut last_arc: Vec<Option<usize>> = Vec::new();
-    for &(f, m) in span {
-        let (mut fa, mut la) = (None, None);
-        for t in 0..m - 1 {
-            if dist(vx[f + t], vx[f + t + 1]) > 1e-6 {
-                if fa.is_none() {
-                    fa = Some(au.len());
-                }
-                la = Some(au.len());
-                au.push(f + t);
-                av.push(f + t + 1);
-            }
-        }
-        first_arc.push(fa);
-        last_arc.push(la);
-    }
-    let na = au.len();
-    if na == 0 {
+/// GPS-DTW on one track (`x`, `y` at `ts`; `origin` = a GPS point). Returns the route (edges).
+///
+/// The rows (input points, or input segments in segment mode) go in windows of `p.window` rows. Each window
+/// keeps its best `p.top_k` ends (one for each edge), and the next window starts only from them. `p.window = 0`:
+/// one window for the whole track (the full DTW).
+pub fn gps_dtw(net: &Network, x: &[f64], y: &[f64], ts: &[i64], origin: &[bool], p: &GpsDtwParams) -> Vec<usize> {
+    let n = x.len();
+    if n == 0 {
         return Vec::new();
     }
-    // feeds[k] = the road segments that can come right after road segment k
-    let mut feeds: Vec<Vec<usize>> = vec![Vec::new(); na];
-    let mut preds: Vec<Vec<usize>> = vec![Vec::new(); na];
-    for k in 0..na.saturating_sub(1) {
-        if av[k] == au[k + 1] {
-            feeds[k].push(k + 1);
-            preds[k + 1].push(k);
+    let mut w = weights(ts, origin, p.tau);
+    for (wi, &o) in w.iter_mut().zip(origin) {
+        if o {
+            *wi = p.gps_weight;
         }
     }
-    let pos: std::collections::HashMap<usize, usize> = edges.iter().enumerate().map(|(k, &e)| (e, k)).collect();
-    for (ei, &e) in edges.iter().enumerate() {
-        let Some(la) = last_arc[ei] else { continue };
-        for e2 in &net.next[e] {
-            if let Some(fa) = pos.get(e2).and_then(|&k2| first_arc[k2]) {
-                feeds[la].push(fa);
-                preds[fa].push(la);
-            }
-        }
-    }
-    let mid: Vec<P> = (0..na).map(|k| [(vx[au[k]][0] + vx[av[k]][0]) / 2.0, (vx[au[k]][1] + vx[av[k]][1]) / 2.0]).collect();
-    let abear: Vec<f64> = (0..na).map(|k| bearing(vx[au[k]], vx[av[k]])).collect();
-    let ns = x.len() - 1;
-    let mut d = vec![f64::INFINITY; ns * na];
-    let mut back = vec![(0u8, usize::MAX); ns * na];
-    let mut e = vec![0.0; na];
-    let mut heap: std::collections::BinaryHeap<std::cmp::Reverse<(u64, usize)>> = std::collections::BinaryHeap::new();
-    for s_ in 0..ns {
-        let m = [(x[s_] + x[s_ + 1]) / 2.0, (y[s_] + y[s_ + 1]) / 2.0];
-        let sw = 0.5 * (w[s_] + w[s_ + 1]);
-        let sb = bearing([x[s_], y[s_]], [x[s_ + 1], y[s_ + 1]]);
-        for k in 0..na {
-            let mut c = dist(m, mid[k]);
-            if bw > 0.0 {
-                let a = (sb - abear[k]).abs() % 360.0;
-                c += bw * a.min(360.0 - a);
-            }
-            e[k] = sw * c;
-        }
-        let row = s_ * na;
-        if s_ == 0 {
-            d[..na].copy_from_slice(&e[..na]);
-        } else {
-            let prev = (s_ - 1) * na;
-            for k in 0..na {
-                let mut c = d[prev + k];
-                let mut b = (1u8, k);
-                for &q in &preds[k] {
-                    if d[prev + q] < c {
-                        c = d[prev + q];
-                        b = (2u8, q);
-                    }
-                }
-                if c.is_finite() {
-                    d[row + k] = c + e[k];
-                    back[row + k] = b;
-                }
-            }
-        }
-        heap.clear();
-        for k in 0..na {
-            if d[row + k].is_finite() {
-                heap.push(std::cmp::Reverse((d[row + k].to_bits(), k)));
-            }
-        }
-        while let Some(std::cmp::Reverse((cb, k))) = heap.pop() {
-            let c = f64::from_bits(cb);
-            if c > d[row + k] {
-                continue;
-            }
-            for &q in &feeds[k] {
-                let c2 = c + e[q];
-                if c2 < d[row + q] {
-                    d[row + q] = c2;
-                    back[row + q] = (3u8, k);
-                    heap.push(std::cmp::Reverse((c2.to_bits(), q)));
-                }
-            }
-        }
-    }
-    let last = (ns - 1) * na;
-    let mut k = (0..na).fold(0, |b, q| if d[last + q] < d[last + b] { q } else { b });
-    if !d[last + k].is_finite() {
-        return Vec::new();
-    }
-    let mut s_ = ns - 1;
-    let mut seq = vec![k];
+    // the search radius
+    let gps: Vec<usize> = (0..n).filter(|&i| origin[i]).collect();
+    let mut gaps: Vec<f64> = gps.windows(2).map(|q| dist([x[q[0]], y[q[0]]], [x[q[1]], y[q[1]]])).collect();
+    gaps.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let med = if gaps.is_empty() { 0.0 } else { gaps[gaps.len() / 2] };
+    let r = p.corridor_min.max(p.corridor_gap * med);
+    let near: Vec<Vec<usize>> = (0..n).map(|i| net.neighboring_edges(x[i], y[i], r).into_iter().map(|(e, _)| e).collect()).collect();
+    let segment = p.segment && n >= 2;
+    // the rows: input points, or input segments (i, i + 1)
+    let nrows = if segment { n - 1 } else { n };
+    let seg_mid: Vec<P> = if segment { (0..n - 1).map(|i| [(x[i] + x[i + 1]) / 2.0, (y[i] + y[i + 1]) / 2.0]).collect() } else { vec![] };
+    let seg_w: Vec<f64> = if segment { (0..n - 1).map(|i| 0.5 * (w[i] + w[i + 1])).collect() } else { vec![] };
+    let seg_b: Vec<f64> = if segment { (0..n - 1).map(|i| bearing([x[i], y[i]], [x[i + 1], y[i + 1]])).collect() } else { vec![] };
+    let bw = p.bearing_weight;
+    let win = if p.window == 0 { nrows } else { p.window };
+    let mut kept: Option<Vec<Kept>> = None;
+    let mut r0 = 0;
     loop {
-        let (mv, q) = back[s_ * na + k];
-        match mv {
-            1 => s_ -= 1,
-            2 => {
-                s_ -= 1;
-                k = q;
+        // a window shares its first row with the last row of the window before
+        let r1 = (r0 + win).min(nrows - 1).max(r0);
+        let last_pt = if segment { r1 + 1 } else { r1 };
+        let mut edges: Vec<usize> = (r0..=last_pt).flat_map(|i| near[i].iter().copied()).collect();
+        if let Some(kp) = &kept {
+            edges.extend(kp.iter().map(|q| q.key.0));
+        }
+        edges.sort_unstable();
+        edges.dedup();
+        let st = build_states(net, &edges, p.speed.max(0.1), segment);
+        let cost = |row: usize, v: usize| -> f64 {
+            if segment {
+                let mut c = dist(seg_mid[row], st.pos[v]);
+                if bw > 0.0 {
+                    let a = (seg_b[row] - st.bear[v]).abs() % 360.0;
+                    c += bw * a.min(360.0 - a);
+                }
+                seg_w[row] * c
+            } else {
+                w[row] * dist([x[row], y[row]], st.pos[v])
             }
-            3 => k = q,
-            _ => break,
+        };
+        let k = if r1 == nrows - 1 { 1 } else { p.top_k };
+        let out = window_dtw(&st, r0, r1, &cost, kept.as_deref(), k);
+        if out.is_empty() {
+            // no connected road: give the best route so far
+            return kept.and_then(|kp| kp.into_iter().next()).map(|q| q.route).unwrap_or_default();
         }
-        seq.push(k);
-    }
-    seq.reverse();
-    let mut route: Vec<usize> = Vec::new();
-    for k in seq {
-        let ed = vedge[au[k]];
-        if route.last() != Some(&ed) {
-            route.push(ed);
+        if r1 == nrows - 1 {
+            return out.into_iter().next().map(|q| q.route).unwrap_or_default();
         }
+        kept = Some(out);
+        r0 = r1;
     }
-    route
 }
 
 /// The input of the DTW: `richdata`, then the Bezier interpolation at 1 s with the stopped repeats removed.
