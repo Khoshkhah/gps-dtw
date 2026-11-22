@@ -28,8 +28,17 @@ Each point gets a weight from its time to the nearest real GPS point. See [The c
    15 s and 270 m at 30 s in Monaco. Between two GPS points the true road can go far from the interpolated curve (a
    winding road), so the radius must grow there. Near the GPS points it does not need to: there the small radius
    keeps out the far edges, and the DTW has fewer road points.
-2. **The division.** Each edge gets a point each `speed × 1 s` from its start, along its shape, and its end point.
-3. **The connections.** A road point follows the previous point on its edge. The last point of an edge connects to the
+2. **The roads of a window.** A window does not use all edges in the corridor. It uses only the edges on a road
+   path from its start edges (the ends that the window before kept, or the edges near the first point) to the edges
+   near its last point. A forward Dijkstra from the start edges and a backward Dijkstra from the end edges find
+   them. Two rules keep the search small:
+   - **No detour.** A path is at most `detour` × the trace length in the window (default 1.2, + 50 m and the
+     start and end edges). The GPS trace is a little longer or shorter than the road, so the limit is not 1.0.
+   - **No far branch.** The search goes only through the edges in the corridor of the window's points (item 1).
+   Then a road that is near the trace but has no connection (a parallel road, a road on another level) gives no road
+   points. When no path is found, the window uses all edges in its corridor.
+3. **The division.** Each edge gets a point each `speed × 1 s` from its start, along its shape, and its end point.
+4. **The connections.** A road point follows the previous point on its edge. The last point of an edge connects to the
    first point of each edge that can follow it: the `turns` of the network (duckOSM's `edge_graph`, without the turns
    that a turn restriction forbids), or, without `turns`, each edge that starts at its end node.
 
